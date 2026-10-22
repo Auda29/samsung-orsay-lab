@@ -113,11 +113,23 @@ def main():
             raw(native, 29461)
             raw(native, 29443)
             assert native.evaluate("window.calls") == ["ready", "init", "area", "play"]
-            assert native.evaluate("document.getElementById('pluginPlayer').OnCurrentPlayTime") == "LabPlayer.progress"
-            native.evaluate("LabPlayer.progress(1000)")
+            assert native.evaluate("document.getElementById('pluginPlayer').OnCurrentPlayTime").startswith("LabPlayer.session")
+            native.evaluate("""() => {
+              var name = document.getElementById('pluginPlayer').OnCurrentPlayTime;
+              window.LabPlayer[name.split('.')[1]](1000);
+            }""")
             assert "Orsay Callback: 1 s" in native.locator("#player-status").inner_text()
+            old_end = native.evaluate("document.getElementById('pluginPlayer').OnRenderingComplete")
             raw(native, 88)
             assert native.evaluate("window.calls").count("stop") == 1
+            raw(native, 29443)  # restart the selected test video
+            assert native.evaluate("window.calls").count("play") == 2
+            assert native.evaluate("document.getElementById('pluginPlayer').OnRenderingComplete") != old_end
+            native.evaluate("name => window.LabPlayer[name.split('.')[1]]()", old_end)
+            assert native.evaluate("window.calls").count("stop") == 1
+            assert "Start angefordert" in native.locator("#player-status").inner_text()
+            raw(native, 88)
+            assert native.evaluate("window.calls").count("stop") == 2
             raw(native, 88)
             raw(native, 45)
             assert native.evaluate("window.calls")[-2:] == ["return", "exit"]

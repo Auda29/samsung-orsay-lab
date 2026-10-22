@@ -22,10 +22,21 @@ begrenzt, Tastencodes auf zwölf. Keine dauerhafte Speicherung oder Telemetrie.
 Konfiguration wird nur beim Build eingelesen; der Fernseher braucht noch keine
 Bildschirmtastatur. Daher sind keine Credentials oder Tokens implementiert.
 
-Native Player-Callbacks werden über `LabPlayer.<name>` registriert, wie im
-Legacy-Referenzclient [S9]. Methodenaufrufe können fehlschlagen oder keine
+Native Player-Callbacks werden als globale Namen registriert, wie im
+Legacy-Referenzclient [S9]. Jeder Start erhält eigene Namen nach dem Muster
+`LabPlayer.session<id>_<name>`. Stop deaktiviert die Sitzung vor dem nativen
+Stop-Aufruf. Alte Namen bleiben bis zum Schließen des Widgets als leere
+Funktionen erhalten, damit verzögerte Aufrufe weder die nächste Wiedergabe
+stoppen noch fehlende Funktionen aufrufen. Die alten Sitzungsobjekte werden
+dabei freigegeben. Auch HTML5-Ereignisse und Play-Ablehnungen sind an ihre
+Sitzung gebunden. Die Auflösung dieser Namen durch die TV-Firmware bleibt
+Teil des Gerätetests.
+
+Methodenaufrufe können fehlschlagen oder keine
 eindeutigen Rückgabewerte liefern; Erfolg wird erst durch die TV-Beobachtung
-festgestellt. Nach 20 s ohne Fortschritt gibt es einen Timeout. Stop/Return,
+festgestellt. Nach 20 s ohne steigende, endliche Wiedergabezeit gibt es einen
+Timeout. Gleiche, rückläufige oder ungültige Zeitwerte und reine Pufferereignisse
+verlängern die Frist nicht. Stop/Return,
 Unload und Pause räumen den gestarteten Player auf. Die UI und HTML-Hintergründe
 werden für die Videoebene transparent. Deren Koordinaten bleiben konfigurierbar.
 

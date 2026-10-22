@@ -32,6 +32,25 @@ Die Browservorschau entfernt nur die geräteeigenen `$MANAGER_WIDGET`-Script-Tag
 die eigentliche Widget-ZIP behält sie. Die native Integrationsprüfung setzt
 explizite Mock-Objekte vor dem Laden der App.
 
+## Nachprüfung der Playerkorrekturen unter Windows
+
+Am 2026-10-22 mit Python 3.11.9 und Node.js 22.15.0 erneut geprüft:
+
+- Alle vier Python-Unittests bestehen.
+- 13 Player-Regressionstests mit virtueller Uhr und expliziten Native-/HTML5-Mocks
+  bestehen. Abgedeckt sind Stillstand trotz wiederholter Zeit-Callbacks,
+  ungültige/rückläufige Werte, echter Fortschritt unterhalb einer Sekunde,
+  verspätete Ereignisse nach Stop/Neustart, rekursive Stop-Ereignisse,
+  synchrone Startfehler, fehlende APIs, Start-Ablehnungen und Wiedergabeende.
+- Die Mocktests sind ohne Browser und ohne Zusatzpakete über
+  `node --test tests/player.test.cjs` ausführbar. Node.js ist nur eine
+  Entwicklungsabhängigkeit; Build und Installationsserver bleiben bei Python.
+- Der Browsertest besteht mit Playwright 1.62.0 und Chromium 151.0.7922.34
+  in einer lokalen `.venv`. Das neu erzeugte Testvideo wird tatsächlich über
+  HTML5 abgespielt. Navigation, Netzprobe, Viewports und der simulierte
+  Orsay-Lifecycle bestehen ebenfalls, einschließlich Neustart mit einem
+  verspäteten Ende-Callback der vorherigen Sitzung. Kein TV-/Tonnachweis.
+
 ## Noch nicht ausgeführt
 
 - Installation, Menüs, Firmwareverträglichkeit und SDK-5.1-Laufzeit auf UE32J4570.
@@ -46,6 +65,7 @@ explizite Mock-Objekte vor dem Laden der App.
 ```bash
 python3 tools/make_sample.py
 python3 -m unittest discover -s tests -v
+node --test tests/player.test.cjs
 python3 tests/browser.py
 ```
 

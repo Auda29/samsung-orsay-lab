@@ -68,6 +68,8 @@ kein Ersatz des Smart Hubs. Zugangsdaten werden weder benötigt noch mitgebaut.
 
 ```bash
 python3 -m unittest discover -s tests -v
+# Player-Regressionstests mit Node.js 18+; keine npm-Pakete nötig
+node --test tests/player.test.cjs
 # Optional: pip install -r requirements-dev.txt
 # Chromium installieren oder: python3 -m playwright install chromium
 python3 tests/browser.py

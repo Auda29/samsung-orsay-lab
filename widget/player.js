@@ -1,79 +1,118 @@
 /* Legacy Player plugin first. HTML5 is a clearly labelled desktop test only. */
 var LabPlayer = (function () {
   'use strict';
-  var player = null, video = null, active = false, timer = 0, notify = null, nativePlayer = false;
-  function state(text) { LabLog.add('Player: ' + text); if (notify) notify(text); }
-  function stop() {
-    clearTimeout(timer);
-    if (active) {
-      try {
-        if (nativePlayer) player.Stop();
-        else if (video) { video.pause(); video.removeAttribute('src'); video.load(); video.style.display = 'none'; }
-      } catch (e) { LabLog.add('Stop FEHLER: ' + e.message); }
-    }
-    active = false;
+  var current = null, nextSession = 0;
+  function ignore() {}
+  function isCurrent(session) { return current === session && session.active; }
+  function state(session, text) {
+    LabLog.add('Player: ' + text);
+    if (session.notify) session.notify(text);
   }
-  function fail(text) { stop(); state(text); }
-  function play(url, onState) {
-    stop(); notify = onState; lastSecond = -1;
-    if (!/^https?:\/\//i.test(url || '')) { state('Keine gültige Testvideo-URL. Build-Konfiguration prüfen.'); return; }
-    player = document.getElementById('pluginPlayer');
-    nativePlayer = OrsayTV.nativeMode();
-    if (nativePlayer && (!player || !player.InitPlayer || !player.StartPlayback)) {
-      state('Orsay Player API fehlt. Kein automatischer HTML5-Ersatz auf dem TV.'); return;
+  function guard(session, fn) {
+    return function (value) { if (isCurrent(session)) fn(session, value); };
+  }
+  function nativeCallback(session, name, fn) {
+    var key = 'session' + session.id + '_' + name;
+    LabPlayer[key] = guard(session, fn);
+    session.callbacks.push(key);
+    return 'LabPlayer.' + key;
+  }
+  function stop() {
+    var session = current, i;
+    if (!session) return;
+    current = null;
+    session.active = false;
+    clearTimeout(session.timer);
+    /* Keep retired names callable for queued native events, without retaining sessions. */
+    for (i = 0; i < session.callbacks.length; i++) LabPlayer[session.callbacks[i]] = ignore;
+    if (session.video) {
+      session.video.onplaying = session.video.ontimeupdate = null;
+      session.video.onerror = session.video.onended = null;
+      session.video.style.display = 'none';
     }
-    active = true;
-    timer = setTimeout(function () { fail('TIMEOUT: 20 s ohne Fortschritt. Serverlog / Codec / TLS prüfen.'); }, 20000);
     try {
-      if (nativePlayer) {
-        /* Native plugins resolve callbacks by global name on legacy firmwares. */
-        player.OnBufferingStart = 'LabPlayer.buffering';
-        player.OnBufferingComplete = 'LabPlayer.buffered';
-        player.OnStreamInfoReady = 'LabPlayer.streamInfo';
-        player.OnCurrentPlayTime = 'LabPlayer.progress';
-        player.OnRenderingComplete = 'LabPlayer.ended';
-        player.OnConnectionFailed = 'LabPlayer.connectionFailed';
-        player.OnNetworkDisconnected = 'LabPlayer.disconnected';
-        player.OnRenderError = 'LabPlayer.renderError';
-        player.OnStreamNotFound = 'LabPlayer.notFound';
+      if (session.nativePlayer) session.player.Stop();
+      else if (session.video) {
+        session.video.pause(); session.video.removeAttribute('src'); session.video.load();
+      }
+    } catch (e) { LabLog.add('Stop FEHLER: ' + e.message); }
+  }
+  function fail(session, text) {
+    if (!isCurrent(session)) return;
+    stop(); state(session, text);
+  }
+  function watch(session) {
+    clearTimeout(session.timer);
+    session.timer = setTimeout(function () {
+      fail(session, 'TIMEOUT: 20 s ohne Fortschritt. Serverlog / Codec / TLS prüfen.');
+    }, 20000);
+  }
+  function progress(session, ms) {
+    ms = Number(ms);
+    if (!isFinite(ms) || ms <= session.lastTime) return;
+    session.lastTime = ms;
+    watch(session);
+    var seconds = Math.floor(ms / 1000);
+    if (seconds !== session.lastSecond) {
+      session.lastSecond = seconds;
+      if (session.notify) session.notify((session.nativePlayer ? 'Orsay Callback' : 'BROWSER') +
+        ': ' + seconds + ' s · Bild/Ton separat beurteilen');
+    }
+  }
+  function ended(session) {
+    stop(); state(session, 'Wiedergabe beendet. Bild und Ton beobachtet? Ergebnis im Testprotokoll erfassen.');
+  }
+  function play(url, onState) {
+    stop();
+    var session = {id: ++nextSession, active: false, timer: 0, notify: onState,
+      nativePlayer: OrsayTV.nativeMode(), player: null, video: null, callbacks: [], lastTime: 0, lastSecond: -1};
+    if (!/^https?:\/\//i.test(url || '')) {
+      state(session, 'Keine gültige Testvideo-URL. Build-Konfiguration prüfen.'); return;
+    }
+    var player = document.getElementById('pluginPlayer');
+    session.player = player;
+    if (session.nativePlayer && (!player || !player.InitPlayer || !player.StartPlayback ||
+        !player.SetDisplayArea || !player.Stop)) {
+      state(session, 'Orsay Player API fehlt. Kein automatischer HTML5-Ersatz auf dem TV.'); return;
+    }
+    current = session; session.active = true;
+    watch(session);
+    try {
+      if (session.nativePlayer) {
+        /* Unique global names keep callbacks from previous streams out of this session. */
+        player.OnBufferingStart = nativeCallback(session, 'buffering', function (s) { state(s, 'Puffert …'); });
+        player.OnBufferingComplete = nativeCallback(session, 'buffered', function (s) { state(s, 'Puffer bereit; warte auf Fortschritt.'); });
+        player.OnStreamInfoReady = nativeCallback(session, 'streamInfo', function (s) { state(s, 'StreamInfoReady; noch kein Bild-/Tonnachweis.'); });
+        player.OnCurrentPlayTime = nativeCallback(session, 'progress', progress);
+        player.OnRenderingComplete = nativeCallback(session, 'ended', ended);
+        player.OnConnectionFailed = nativeCallback(session, 'connectionFailed', function (s) { fail(s, 'Verbindung fehlgeschlagen'); });
+        player.OnNetworkDisconnected = nativeCallback(session, 'disconnected', function (s) { fail(s, 'Netzwerk getrennt'); });
+        player.OnRenderError = nativeCallback(session, 'renderError', function (s, code) { fail(s, 'Renderfehler ' + code); });
+        player.OnStreamNotFound = nativeCallback(session, 'notFound', function (s) { fail(s, 'Stream nicht gefunden'); });
         var result = player.InitPlayer(url);
-        if (result === false || result === 0) { fail('InitPlayer abgelehnt'); return; }
+        if (!isCurrent(session)) return;
+        if (result === false || result === 0) { fail(session, 'InitPlayer abgelehnt'); return; }
         /* Legacy video plane commonly uses 960x540, independently of UI/panel resolution. */
         player.SetDisplayArea(0, 0, LAB_CONFIG.playerWidth, LAB_CONFIG.playerHeight);
+        if (!isCurrent(session)) return;
         result = player.StartPlayback(0);
-        if (result === false || result === 0) { fail('StartPlayback abgelehnt'); return; }
-        state('Orsay: Start angefordert. Bild und Ton am TV bestätigen.');
+        if (!isCurrent(session)) return;
+        if (result === false || result === 0) { fail(session, 'StartPlayback abgelehnt'); return; }
+        state(session, 'Orsay: Start angefordert. Bild und Ton am TV bestätigen.');
       } else {
-        video = document.getElementById('browser-video');
+        var video = document.getElementById('browser-video');
+        session.video = video;
         video.style.display = 'block';
-        video.onplaying = function () { state('BROWSER: playing-Ereignis; kein TV-Nachweis.'); };
-        video.ontimeupdate = function () { if (video.currentTime > 0) progress(Math.round(video.currentTime * 1000)); };
-        video.onerror = function () { fail('BROWSER: media error ' + (video.error ? video.error.code : '?')); };
-        video.onended = ended;
+        video.onplaying = guard(session, function (s) { state(s, 'BROWSER: playing-Ereignis; kein TV-Nachweis.'); });
+        video.ontimeupdate = guard(session, function (s) { progress(s, Math.round(video.currentTime * 1000)); });
+        video.onerror = guard(session, function (s) { fail(s, 'BROWSER: media error ' + (video.error ? video.error.code : '?')); });
+        video.onended = guard(session, ended);
         video.src = url;
         var promise = video.play();
-        if (promise && promise['catch']) promise['catch'](function () { fail('BROWSER: Wiedergabe abgelehnt / Autoplay.'); });
-        state('BROWSER: HTML5-Test gestartet; kein Orsay-Nachweis.');
+        if (promise && promise['catch']) promise['catch'](guard(session, function (s) { fail(s, 'BROWSER: Wiedergabe abgelehnt / Autoplay.'); }));
+        if (isCurrent(session)) state(session, 'BROWSER: HTML5-Test gestartet; kein Orsay-Nachweis.');
       }
-    } catch (e) { fail('FEHLER: ' + e.message); }
+    } catch (e) { fail(session, 'FEHLER: ' + e.message); }
   }
-  var lastSecond = -1;
-  function progress(ms) {
-    if (!active) return;
-    clearTimeout(timer);
-    var seconds = Math.floor(Number(ms) / 1000);
-    if (seconds !== lastSecond) {
-      lastSecond = seconds;
-      if (notify) notify((nativePlayer ? 'Orsay Callback' : 'BROWSER') + ': ' + seconds + ' s · Bild/Ton separat beurteilen');
-    }
-    timer = setTimeout(function () { fail('TIMEOUT: 20 s kein weiterer Fortschritt.'); }, 20000);
-  }
-  function ended() { stop(); state('Wiedergabe beendet. Bild und Ton beobachtet? Ergebnis im Testprotokoll erfassen.'); }
-  return {play: play, stop: stop, progress: progress, ended: ended,
-    buffering: function () { state('Puffert …'); }, buffered: function () { state('Puffer bereit; warte auf Fortschritt.'); },
-    streamInfo: function () { state('StreamInfoReady; noch kein Bild-/Tonnachweis.'); },
-    connectionFailed: function () { fail('Verbindung fehlgeschlagen'); },
-    disconnected: function () { fail('Netzwerk getrennt'); },
-    notFound: function () { fail('Stream nicht gefunden'); },
-    renderError: function (code) { fail('Renderfehler ' + code); }};
+  return {play: play, stop: stop};
 })();
