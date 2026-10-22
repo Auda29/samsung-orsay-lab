@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=1280">
+  <title>Orsay Lab</title>
+  <link rel="stylesheet" href="ui.css">
+  <script src="errors.js"></script>
+  <script src="$MANAGER_WIDGET/Common/API/Widget.js"></script>
+  <script src="$MANAGER_WIDGET/Common/API/TVKeyValue.js"></script>
+  <script src="config.js"></script>
+  <script src="tv-orsay.js"></script>
+  <script src="player.js"></script>
+</head>
+<body onload="Lab.start();" onunload="Lab.stop();">
+  <object id="pluginPlayer" classid="clsid:SAMSUNG-INFOLINK-PLAYER" class="plugin"></object>
+  <object id="pluginNNavi" classid="clsid:SAMSUNG-INFOLINK-NNAVI" class="plugin"></object>
+  <a id="key-anchor" href="#" aria-label="Fernbedienung"></a>
+  <div id="stage">
+    <h1>Orsay Lab <span>UE32J4570 · Prototyp 0.1</span></h1>
+    <div id="mode">Start …</div>
+    <div id="home">
+      <div id="tiles">
+        <div class="tile" id="tile-0" style="left:56px;top:154px"><div class="word">Plex</div><small>Client-Kompatibilität prüfen</small></div>
+        <div class="tile" id="tile-1" style="left:452px;top:154px"><div class="word">YouTube</div><small>Vorhandene App zuerst testen</small></div>
+        <div class="tile" id="tile-2" style="left:848px;top:154px"><div class="word">Diagnose</div><small>Plattform und letzte Tasten</small></div>
+        <div class="tile" id="tile-3" style="left:56px;top:354px"><div class="word">Testvideo</div><small>Lokaler MP4-Player-Test</small></div>
+        <div class="tile" id="tile-4" style="left:452px;top:354px"><div class="word">Einstellungen</div><small>Konfiguration und Netztest</small></div>
+        <div class="tile" id="tile-5" style="left:848px;top:354px"><div class="word">Beenden</div><small>Zurück zum TV</small></div>
+      </div>
+      <p id="hint">Pfeile: Navigation · OK: Öffnen · Zurück: Schließen / Smart Hub · Exit: Beenden</p>
+    </div>
+    <div id="panel"><h2 id="panel-title"></h2><pre id="panel-text"></pre><div id="panel-help"></div></div>
+    <div id="playback"><span id="player-status">Player wird gestartet …</span><small>Zurück / Stop: Wiedergabe stoppen · Exit: Beenden</small></div>
+    <div id="status">Noch kein Gerätetest. Browsermodus bestätigt keine TV-Funktion.</div>
+    <pre id="log"></pre>
+  </div>
+  <video id="browser-video"></video>
+  <script src="ui.js"></script>
+</body>
+</html>

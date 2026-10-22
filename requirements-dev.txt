@@ -1,0 +1,2 @@
+# Optional browser tests only. Widget and build have no third-party runtime dependencies.
+playwright==1.62.0

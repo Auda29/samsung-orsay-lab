@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.samsung.com/">
+  <ThumbIcon itemtype="string">icons/small.png</ThumbIcon>
+  <BigThumbIcon itemtype="string">icons/big.png</BigThumbIcon>
+  <ListIcon itemtype="string">icons/list.png</ListIcon>
+  <BigListIcon itemtype="string">icons/biglist.png</BigListIcon>
+  <category itemtype="Video">Videos</category>
+  <autoUpdate itemtype="boolean">n</autoUpdate>
+  <ver itemtype="string">0.1.0</ver>
+  <fullwidget itemtype="boolean">y</fullwidget>
+  <type itemtype="string">user</type>
+  <srcctl itemtype="boolean">y</srcctl>
+  <ticker itemtype="boolean">n</ticker>
+  <childlock itemtype="boolean">n</childlock>
+  <videomute itemtype="boolean">n</videomute>
+  <dcont itemtype="boolean">y</dcont>
+  <widgetname itemtype="string">Orsay Lab</widgetname>
+  <description itemtype="string">Installation, remote and player diagnostic</description>
+  <width itemtype="string">1280</width>
+  <height itemtype="string">720</height>
+  <author itemtype="group"><name itemtype="string">Orsay Lab contributors</name></author>
+</widget>

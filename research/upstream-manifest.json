@@ -1,0 +1,14 @@
+{
+  "retrieved": "2026-10-22",
+  "repository": "https://github.com/simbasjungles/free-my-tv",
+  "ref": "main",
+  "pinning": "Content SHA256 snapshots; not a claimed Git commit ID",
+  "files": {
+    "LICENSE": "2694143f9151c9294207e8a7c335e41fbd2db2f7f47e3649844488079941872b",
+    "README.md": "4d2d2009c3ca5738e3928161b1607ccdb88225091bca4ead7ffb2e85f6f4cb77",
+    "home.css": "43393130ceb868afcd59558be500b5563cb00a904bbce84b9acb7b0b3c303b63",
+    "home.js": "92b615fc17949c7a7cc068af77eb68462ea23c82f8ec0983ff48053b4b2fd845",
+    "index.html": "016a31e3cecc49b9bdcf57dc9d0e0208ae1e4b82fa37e86bcdfc68b8f1950f67",
+    "tv.js": "06ec858903da959ab51359710a4b5d12bdb0a30289d65ef88a042aa379ba8e92"
+  }
+}
