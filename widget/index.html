@@ -6,18 +6,21 @@
   <title>Orsay Lab</title>
   <link rel="stylesheet" href="ui.css">
   <script src="errors.js"></script>
+  <script src="config.js"></script>
+  <script>LabLog.configure(LAB_CONFIG.logUrl, LAB_CONFIG.buildVersion);</script>
   <script src="$MANAGER_WIDGET/Common/API/Widget.js"></script>
   <script src="$MANAGER_WIDGET/Common/API/TVKeyValue.js"></script>
-  <script src="config.js"></script>
+  <script src="$MANAGER_WIDGET/Common/webapi/1.0/webapis.js"></script>
   <script src="tv-orsay.js"></script>
   <script src="player.js"></script>
 </head>
 <body onload="Lab.start();" onunload="Lab.stop();">
   <object id="pluginPlayer" classid="clsid:SAMSUNG-INFOLINK-PLAYER" class="plugin"></object>
   <object id="pluginNNavi" classid="clsid:SAMSUNG-INFOLINK-NNAVI" class="plugin"></object>
-  <a id="key-anchor" href="#" aria-label="Fernbedienung"></a>
+  <object id="pluginSEF" classid="clsid:SAMSUNG-INFOLINK-SEF" class="plugin"></object>
+  <a id="key-anchor" href="javascript:void(0);" aria-label="Fernbedienung"></a>
   <div id="stage">
-    <h1>Orsay Lab <span>UE32J4570 · Prototyp 0.1</span></h1>
+    <h1>Orsay Lab <span id="build-label">UE32J4570</span></h1>
     <div id="mode">Start …</div>
     <div id="home">
       <div id="tiles">

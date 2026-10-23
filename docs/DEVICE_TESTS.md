@@ -19,13 +19,16 @@ erst vor Ort. Keine persönlichen Kontodaten oder Tokens im Ergebnisbericht teil
 
 1. **Installation:** LAN-Build nach INSTALL.md erzeugen, auf Port 80 ausliefern,
    develop/Sync versuchen. Server-GETs auf XML und ZIP, TV-Meldung und sichtbares
-   Orsay-Lab-Icon erfassen. Ohne Installation noch keine UI-Portierung erweitern.
+   Orsay-Lab-Icon erfassen. Sichtbare Buildversion mit dem erzeugten Paket vergleichen.
+   Ohne Installation noch keine UI-Portierung erweitern.
 2. **Start und Tasten:** Orsay Lab öffnen. Pfeile in beide Richtungen, OK,
    Return aus einer Unterseite, Return auf der Startseite und Exit prüfen.
    Diagnose zeigt die letzten rohen Tastencodes. Erwartete Legacy-Codes:
    links 4, rechts 5, hoch 29460, runter 29461, OK 29443, Return 88, Exit 45.
    Tatsächliche TVKeyValue-Werte haben ebenfalls Gültigkeit. Auswahl darf pro
    Tastendruck nur einmal wechseln. Return intern darf die App nicht schließen.
+   Diagnose öffnen, INFOLINK-/SEF-/AVPlay-Erkennung notieren und eingehende
+   Ereignisse in `artifacts/tv-log.jsonl` prüfen. API-Erkennung ist kein Playertest.
 3. **Lokales Video:** Server mit media/test.mp4 laufen lassen. „Testvideo“
    wählen. Bewegtes Muster **sehen**, 440-Hz-Ton **hören**, mindestens 20 s laufen
    lassen, per Return stoppen, zweimal erneut starten, Exit während Wiedergabe.
@@ -52,6 +55,8 @@ später einen längeren Film, Pause/Seek/Resume, Untertitel und Neustarts prüfe
 | Menüweg, develop und Sync | offen |
 | widgetlist.xml / ZIP im Serverlog | offen |
 | Widget gestartet / sichtbarer API-Modus | offen |
+| Buildversion am TV / Logempfang HTTP 204 | offen |
+| INFOLINK / SEF / Legacy-AVPlay erkannt | offen |
 | Viewport / Panel / Player-Ebene | offen |
 | Links/rechts/hoch/runter/OK: rohe Codes | offen |
 | Return Unterseite / Return Start / Exit | offen |

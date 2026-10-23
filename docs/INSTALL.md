@@ -14,16 +14,15 @@ Gastnetz-/Client-Isolation darf die Verbindung nicht blockieren. Verwende die
 IPv4 des **Installationsservers**, nicht die des Fernsehers. Für die Beispiele
 ist dies `192.168.1.20`; überall durch die tatsächliche Adresse ersetzen.
 
-Die Cloud-Umgebung kann bauen und testen, hat aber keine bestätigte Verbindung
-zu deinem Heimnetz. Für die Installation den Projektordner auf einen Rechner
-im Heimnetz kopieren. Weder Tizen Studio noch ein alter SDK-Download ist nötig.
+Für die Installation das Projekt auf einem Rechner im Heimnetz ausführen.
+Weder Tizen Studio noch ein alter SDK-Download ist nötig.
 
 ## 2. Reproduzierbarer Build
 
 Python 3.10+ genügt. Zuerst im Projektordner:
 
 ```bash
-python3 tools/build.py --host 192.168.1.20 --port 80
+python3 tools/build.py --host 192.168.1.20 --port 80 --build-number 1
 python3 tools/make_sample.py
 ```
 
@@ -35,7 +34,7 @@ Ergebnis:
 
 ```text
 dist/widgetlist.xml
-dist/OrsayLab_0.1.0_Europe_20261022.zip
+dist/OrsayLab_0.1.1_Europe.zip
 dist/SHA256SUMS
 dist/preview/index.html
 media/test.mp4
@@ -48,6 +47,13 @@ gleicher Python-/zlib-Version ergeben identische ZIP-Bytes. Eine andere Server-I
 oder lokale Konfiguration ändert die Prüfsumme erwartungsgemäß.
 Das erzeugte Testvideo ist kein Bestandteil der ZIP und muss erreichbar bleiben.
 
+Die Versionsquelle ist `<ver>` in `widget/config.xml`. `--build-number N` ersetzt
+ausdrücklich die letzte der drei Versionskomponenten, hier `0.1.1`. Für den nächsten
+TV-Stand beispielsweise `--build-number 2` verwenden. Ohne diese Option bleibt
+die Quellversion erhalten. Es gibt keinen automatischen Zähler und kein aktuelles
+Datum im ZIP-Namen. ZIP, Paketmanifest, TV-Kopfzeile, Diagnose und Log verwenden
+dieselbe Version. Nach dem Sync diese Kennung am TV kontrollieren.
+
 Optional für den Netztest zum bestehenden Plex-Server eine ignorierte Datei
 `local.json` anlegen, beispielsweise nur:
 
@@ -55,7 +61,7 @@ Optional für den Netztest zum bestehenden Plex-Server eine ignorierte Datei
 {"plexBaseUrl": "http://192.168.1.30:32400"}
 ```
 
-Dann `python3 tools/build.py --host 192.168.1.20 --port 80 --config local.json`.
+Dann `python3 tools/build.py --host 192.168.1.20 --port 80 --build-number 1 --config local.json`.
 Nicht gesetzte Felder behalten die automatisch erzeugten Test-/Probe-URLs.
 `local.example.json` zeigt alle unterstützten Schlüssel. Leere Felder
 überschreiben Defaults ausdrücklich. Medien-/Probe-URLs und Player-Koordinaten
@@ -75,6 +81,11 @@ für die Browservorschau möglich, aber nicht als Installationsweg zugesichert.
 python3 tools/serve.py --bind 192.168.1.20 --port 80
 ```
 
+Build und Server verwenden ohne `--port` beide 8080 für die Vorschau. Der Server
+prüft die Downloadadresse aus `dist/widgetlist.xml` und warnt bei abweichendem
+Port oder Bind-Host. `--bind 0.0.0.0` ist eine gültige Bindung für alle IPv4-Adressen
+und erzeugt keine Hostwarnung. Die im Build angegebene LAN-IP muss trotzdem stimmen.
+
 Falls das Betriebssystem Port 80 nur mit erhöhten Rechten erlaubt, kann unter
 Linux/macOS ausschließlich dieser Standardbibliothek-Server so gestartet werden:
 
@@ -87,6 +98,8 @@ lokalen Webserver mit passender Auslieferung verwenden. Bestehende Dienste nicht
 ungeprüft stoppen. Bei einem anderen Webserver müssen `/widgetlist.xml`, die ZIP,
 `/health.txt` und das Video unter den generierten URLs erreichbar sein; für Video
 Content-Length, video/mp4 und Byte-Range/206 unterstützen.
+Für den Log-Rückkanal zusätzlich `POST /log` an den Python-Server weiterleiten
+oder denselben Empfangsvertrag implementieren.
 Unter Windows den Server ggf. durch die lokale Firewall im privaten Netz zulassen.
 Es ist keine Router-Portfreigabe nötig.
 
@@ -101,6 +114,31 @@ http://192.168.1.20/preview/index.html
 
 widgetlist.xml muss die aktuelle ZIP-Adresse und tatsächliche ZIP-Größe zeigen.
 Ein reiner PC-Selbsttest beweist die Erreichbarkeit vom TV nicht.
+
+### Diagnose vom TV empfangen
+
+Der Builder setzt die Logadresse unabhängig von einer angepassten Probe-URL
+auf `http://<Build-Host>:<Build-Port>/log`. Der laufende Server schreibt jede
+empfangene Ereignisgruppe als JSON-Zeile nach `artifacts/tv-log.jsonl`, mit
+Empfangszeit, Client-IP und Buildversion. Die Datei liegt außerhalb von `dist`.
+Unter PowerShell lässt sie sich live lesen:
+
+```powershell
+Get-Content artifacts/tv-log.jsonl -Wait
+```
+
+Erfasst werden Startdiagnose, Diagnoseaufrufe, rohe Tastencodes, Player-Startwerte
+und die Einträge des sichtbaren Logs einschließlich `window.onerror`. URLs und
+bekannte Zugangsdatenmuster werden vor dem Versand und beim Empfang bereinigt.
+API-Prüfungen zeigen nur vorhandene Schnittstellen; SEF und AVPlay werden weder
+geöffnet noch zur Wiedergabe verwendet.
+
+Der Versand erfolgt asynchron in kleinen Gruppen mit maximal 64 gepufferten
+Ereignissen. Fehlgeschlagene Gruppen werden verworfen, ohne rekursive Fehlerlogs
+oder automatische Wiederholung. Bei vielen Ereignissen werden die ältesten
+gepufferten Einträge verdrängt; beim Schließen können noch ausstehende Einträge
+verloren gehen. Der Bildschirm-Log bleibt verfügbar. Der Server begrenzt POSTs auf
+32 KiB. Für den Gerätetest weiterhin Bild und Ton direkt beurteilen.
 
 ## 4. Auf dem TV synchronisieren — Gerätetest, noch nicht bestätigt
 

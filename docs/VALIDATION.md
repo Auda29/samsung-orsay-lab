@@ -1,10 +1,10 @@
 # Lokaler Prüfbericht
 
-Stand: 2026-10-22. Keine Verbindung zu TV oder Heimnetz, kein echter Plex-Server
+Stand: 2026-10-23. Keine Verbindung zu TV oder Heimnetz, kein echter Plex-Server
 abgerufen. Die Samsung-Modellzuordnung ist aus Dokumentation bestätigt; das ist
 kein Laufzeitnachweis auf dem Gerät.
 
-## Ausgeführt
+## Erste Prüfung am 2026-10-22
 
 Umgebung: Python 3.12.14, Playwright 1.62.0, Chromium 154.0.8037.57, FFmpeg.
 Eine `.venv` wurde mit Zugriff auf vorinstallierte Systempakete angelegt.
@@ -51,6 +51,32 @@ Am 2026-10-22 mit Python 3.11.9 und Node.js 22.15.0 erneut geprüft:
   Orsay-Lifecycle bestehen ebenfalls, einschließlich Neustart mit einem
   verspäteten Ende-Callback der vorherigen Sitzung. Kein TV-/Tonnachweis.
 
+## Nachprüfung der Diagnoseänderungen am 2026-10-23
+
+Unter Windows mit Python 3.13.2, Node.js 24.16.0, Playwright 1.62.0 und
+Chromium 151.0.7922.34 geprüft. Playwright liegt in einer lokalen `.venv`;
+das Testvideo wurde mit dem vorhandenen FFmpeg neu erzeugt.
+
+- Sechs Python-Tests bestehen, einschließlich expliziter Paketversion,
+  reproduzierbarer ZIPs, Port-/Bind-Prüfung, Logempfang, Datenbereinigung und
+  Ablehnung ungültiger oder zu großer Loganfragen.
+- Alle 13 bisherigen Player-Tests und drei neue Logtransport-Tests bestehen.
+  Letztere prüfen gepufferte Startfehler, Zeitüberschreitungen ohne rekursive
+  Fehlermeldungen, begrenzten Puffer und jeweils nur eine laufende Anfrage.
+- Der Browsertest besteht mit tatsächlichem Fortschritt des HTML5-Testvideos,
+  bestehender Navigation und simuliertem Orsay-Lifecycle. Neue Prüfungen decken
+  Buildanzeige, passive SEF-/AVPlay-Erkennung, einmalige Tastenverarbeitung und
+  den Log-Rückkanal einschließlich eines Fehlers vor dem UI-Start ab.
+- Ein zuvor erzeugter Build in `dist/` blieb nach dem Browsertest bytegleich.
+  Der Vergleich erfasste alle Dateien anhand ihrer SHA256-Prüfsummen.
+- Die Diagnoseseite passt ohne abgeschnittenen Text in das geprüfte Layout.
+  Kopfzeile und Diagnose bei 1366×768 wurden anhand der Screenshots geprüft.
+  Der Übertragungsstatus aktualisiert sich nach HTTP 204 ohne weiteren Tastendruck.
+
+Das sind lokale Browser- und Mockprüfungen. Die neue Bibliothekseinbindung,
+Plugin-Erkennung, XHR-Übertragung und Fernbedienung auf Orsay bleiben am TV
+zu bestätigen. SEF und AVPlay wurden nicht für Wiedergabe implementiert.
+
 ## Noch nicht ausgeführt
 
 - Installation, Menüs, Firmwareverträglichkeit und SDK-5.1-Laufzeit auf UE32J4570.
@@ -65,11 +91,12 @@ Am 2026-10-22 mit Python 3.11.9 und Node.js 22.15.0 erneut geprüft:
 ```bash
 python3 tools/make_sample.py
 python3 -m unittest discover -s tests -v
-node --test tests/player.test.cjs
+node --test tests/player.test.cjs tests/logging.test.cjs
 python3 tests/browser.py
 ```
 
 Das Video ist Voraussetzung für den Wiedergabeteil; ohne Datei meldet der
 Browsertest diesen Abschnitt als übersprungen. Erzeugte Screenshots liegen unter
-`artifacts/`. Der Browsertest baut auf einen temporären Port; danach für die
-Heimnetzinstallation zwingend mit tatsächlicher Server-IP und Port 80 neu bauen.
+`artifacts/`. Der Browsertest baut und serviert in einem temporären Verzeichnis
+auf einem temporären Port. Ein vorhandenes `dist/` wird dabei nicht verändert.
+Für die Heimnetzinstallation mit tatsächlicher Server-IP und Port 80 bauen.

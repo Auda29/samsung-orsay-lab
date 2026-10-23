@@ -90,12 +90,14 @@ var LabPlayer = (function () {
         player.OnRenderError = nativeCallback(session, 'renderError', function (s, code) { fail(s, 'Renderfehler ' + code); });
         player.OnStreamNotFound = nativeCallback(session, 'notFound', function (s) { fail(s, 'Stream nicht gefunden'); });
         var result = player.InitPlayer(url);
+        LabLog.add('InitPlayer Rückgabe: ' + String(result));
         if (!isCurrent(session)) return;
         if (result === false || result === 0) { fail(session, 'InitPlayer abgelehnt'); return; }
         /* Legacy video plane commonly uses 960x540, independently of UI/panel resolution. */
         player.SetDisplayArea(0, 0, LAB_CONFIG.playerWidth, LAB_CONFIG.playerHeight);
         if (!isCurrent(session)) return;
         result = player.StartPlayback(0);
+        LabLog.add('StartPlayback Rückgabe: ' + String(result));
         if (!isCurrent(session)) return;
         if (result === false || result === 0) { fail(session, 'StartPlayback abgelehnt'); return; }
         state(session, 'Orsay: Start angefordert. Bild und Ton am TV bestätigen.');

@@ -12,8 +12,8 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
-from build import build, configuration, ZIP_NAME
-from serve import Handler
+from build import build, configuration, DEFAULT_PORT
+from serve import Handler, installation_warnings, MAX_LOG_BYTES
 
 
 class PackageTests(unittest.TestCase):
@@ -39,8 +39,28 @@ class PackageTests(unittest.TestCase):
             self.assertEqual(root.find("list/widget").attrib["id"], "OrsayLab")
             compression = root.find("list/widget/compression")
             self.assertEqual(int(compression.attrib["size"]), len(original))
-            self.assertEqual(root.findtext("list/widget/download"), "http://192.168.1.20/" + ZIP_NAME)
+            self.assertEqual(root.findtext("list/widget/download"), "http://192.168.1.20/" + first.name)
             self.assertNotIn("$MANAGER_WIDGET", (folder / "preview/index.html").read_text())
+
+    def test_explicit_build_version_and_listener_consistency(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            package, digest = build("192.168.1.20", output=folder, build_number=7)
+            self.assertEqual(package.name, "OrsayLab_0.1.7_Europe.zip")
+            with zipfile.ZipFile(package) as archive:
+                manifest = ET.fromstring(archive.read("config.xml"))
+                self.assertEqual(manifest.findtext("{http://www.samsung.com/}ver"), "0.1.7")
+                config = json.loads(archive.read("config.js").decode().removeprefix("var LAB_CONFIG = ").strip().rstrip(";"))
+                self.assertEqual(config["buildVersion"], "0.1.7")
+                self.assertEqual(config["logUrl"], "http://192.168.1.20:8080/log")
+            self.assertEqual(digest, build("192.168.1.20", output=folder, build_number=7)[1])
+            xml = folder / "widgetlist.xml"
+            self.assertEqual(installation_warnings(xml, "192.168.1.20", DEFAULT_PORT), [])
+            self.assertEqual(installation_warnings(xml, "0.0.0.0", DEFAULT_PORT), [])
+            self.assertEqual(len(installation_warnings(xml, "127.0.0.1", 80)), 2)
+            for invalid in [-1, 65536, True]:
+                with self.assertRaises(ValueError):
+                    build(output=folder, build_number=invalid)
 
     def test_config_rejects_credentials_and_arbitrary_keys(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -60,9 +80,10 @@ class ServerTests(unittest.TestCase):
         self.folder = Path(self.tmp.name)
         self.media = self.folder / "sample.bin"
         self.media.write_bytes(bytes(range(256)) * 4)
+        self.log_path = self.folder / "logs" / "tv.jsonl"
         (self.folder / "widgetlist.xml").write_text("<rsp stat='ok'/>")
         def handler(*args, **kwargs):
-            return Handler(*args, directory=self.folder, media=self.media, **kwargs)
+            return Handler(*args, directory=self.folder, media=self.media, log_path=self.log_path, **kwargs)
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
         self.thread = Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -73,9 +94,9 @@ class ServerTests(unittest.TestCase):
         self.thread.join()
         self.tmp.cleanup()
 
-    def request(self, path, method="GET", headers=None):
+    def request(self, path, method="GET", headers=None, body=None):
         conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
-        conn.request(method, path, headers=headers or {})
+        conn.request(method, path, headers=headers or {}, body=body)
         response = conn.getresponse()
         result = (response.status, dict(response.getheaders()), response.read())
         conn.close()
@@ -109,6 +130,24 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.request("/")[0], 404)
         self.assertEqual(self.request("/../local.json")[0], 404)
         self.assertEqual(self.request("/health.txt", method="OPTIONS")[0], 204)
+
+    def test_log_receiver_redacts_and_limits_batches(self):
+        payload = {"build": "0.1.7", "events": [{"time": "now", "kind": "log",
+                   "text": "Error token=private http://host/path"}]}
+        status, headers, _ = self.request("/log", method="POST", body=json.dumps(payload),
+                                           headers={"Content-Type": "text/plain;charset=UTF-8"})
+        self.assertEqual(status, 204)
+        self.assertIn("POST", headers["Access-Control-Allow-Methods"])
+        record = json.loads(self.log_path.read_text(encoding="utf-8"))
+        self.assertEqual(record["build"], "0.1.7")
+        self.assertEqual(record["client"], "127.0.0.1")
+        self.assertNotIn("private", record["events"][0]["text"])
+        self.assertNotIn("http://", record["events"][0]["text"])
+        for body in ["bad json", "{}", '{"build":"x","events":[null]}']:
+            self.assertEqual(self.request("/log", method="POST", body=body)[0], 400)
+        self.assertEqual(self.request("/log", method="POST", body=b"x" * (MAX_LOG_BYTES + 1))[0], 413)
+        self.assertEqual(self.request("/other", method="POST", body="{}")[0], 404)
+        self.assertEqual(len(self.log_path.read_text().splitlines()), 1)
 
 
 if __name__ == "__main__":

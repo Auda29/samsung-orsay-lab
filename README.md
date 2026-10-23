@@ -6,17 +6,11 @@ Samsung UE32J4570SSXZG. **Orsay / Samsung Legacy Platform, kein Tizen.**
 Die Oberfläche ist lokal geprüft. Die ZIP-Paketierung folgt dem dokumentierten
 Orsay-Widgetformat; **die Installation auf diesem Fernseher ist noch nicht
 bestätigt**. Plex und YouTube sind Prüfpunkte, noch keine integrierten Clients.
-Es wurde keine Verbindung zu deinem TV oder Plex-Server hergestellt.
 
 ## Einstieg
 
-Im vorhandenen Workspace liegt das Projekt unter `/workspace/samsung-orsay-lab`.
-Eine lokale `.venv` mit Python 3.12.14 wurde eingerichtet. Die vorhandene
-Cloud-Instanz wurde weiterverwendet; es wurde keine zweite Cloud-Instanz angelegt.
-Die `.venv` nutzt hier vorhandene Systempakete für Browserprüfungen.
-
 Build und Installationsserver benötigen nur Python 3.10+ und dessen
-Standardbibliothek. Auf einem eigenen Rechner:
+Standardbibliothek:
 
 ```bash
 cd samsung-orsay-lab
@@ -34,21 +28,29 @@ Das Verzeichnis wird absichtlich nicht als Dateiliste angezeigt.
 Für das eigene 30-Sekunden-Testvideo einmal `python3 tools/make_sample.py`
 ausführen. Dafür wird FFmpeg mit libx264 benötigt; es wird nichts heruntergeladen.
 Das Video liegt außerhalb des Widgets unter `media/test.mp4` und wird separat
-vom Installationsserver ausgeliefert. Eine Datei wurde hier bereits erzeugt.
+vom Installationsserver ausgeliefert.
 
 **Vor einem TV-Test mit der LAN-IP des Installationsrechners neu bauen.** Die
-beigelegte ZIP verwendet Loopback für lokale Tests. Genaue Schritte, Port 80 und
+Vorschau verwendet Loopback für lokale Tests. Genaue Schritte, Port 80 und
 die unterschiedlichen Smart-Hub-Menüs stehen in [INSTALL.md](docs/INSTALL.md).
-Die Cloud-IP ist für einen Fernseher im Heimnetz kein Ersatz für diese LAN-IP.
+Build und Server verwenden standardmäßig Port 8080. Für den TV-Sync beide
+ausdrücklich mit Port 80 starten.
 
 ## Was enthalten ist
 
 - Native Orsay-Anbindung für Ready, Tasten, Return und Exit in `widget/tv-orsay.js`.
 - Lokaler Player-Test über das Legacy-Player-Plugin; HTML5 nur in der Vorschau.
-- Diagnose mit User-Agent, Viewport, API-Erkennung, Tastencodes und Fehlerlog.
+- Diagnose für INFOLINK, SEF und Legacy-AVPlay; Wiedergabe über INFOLINK.
+- User-Agent, Viewport, Tastencodes und Fehlerlog mit Rückkanal zum LAN-Server.
+- Sichtbare Buildversion aus `config.xml`, optional mit expliziter Buildnummer.
 - Kleiner UI-Ausschnitt aus Free My TV mit vollständigem MIT-Hinweis.
 - Deterministischer Offline-Build, `widgetlist.xml`, ZIP und SHA256-Prüfsumme.
 - HTTP-Server mit CORS-Probe und Byte-Range-Unterstützung für das Testvideo.
+
+`POST /log` schreibt bereinigte Ereignisse, Diagnose und Tastencodes nach
+`artifacts/tv-log.jsonl`. Ein nicht erreichbarer Logserver blockiert die Bedienung
+nicht. Die Diagnose zeigt den Übertragungsstatus. Details zu Buildnummer und
+Logauswertung stehen in [INSTALL.md](docs/INSTALL.md).
 
 Kein Root, kein Firmwarewechsel, kein neuer Medienserver, kein Autostart und
 kein Ersatz des Smart Hubs. Zugangsdaten werden weder benötigt noch mitgebaut.
@@ -69,7 +71,7 @@ kein Ersatz des Smart Hubs. Zugangsdaten werden weder benötigt noch mitgebaut.
 ```bash
 python3 -m unittest discover -s tests -v
 # Player-Regressionstests mit Node.js 18+; keine npm-Pakete nötig
-node --test tests/player.test.cjs
+node --test tests/player.test.cjs tests/logging.test.cjs
 # Optional: pip install -r requirements-dev.txt
 # Chromium installieren oder: python3 -m playwright install chromium
 python3 tests/browser.py
@@ -77,8 +79,8 @@ python3 tests/browser.py
 
 Browserprüfungen verwenden vorhandenes Chromium, sonst Playwrights Chromium.
 Sie prüfen die gebaute Vorschau und simulieren Orsay-APIs in einem getrennten
-Browserkontext. Sie sind kein Orsay-Emulator. Der Browsertest erzeugt `dist` neu
-mit einem temporären Port; vor einem TV-Test deshalb den LAN-Build wiederholen.
+Browserkontext. Sie sind kein Orsay-Emulator. Der Browsertest verwendet ein
+temporäres Build- und Serververzeichnis; ein vorhandener LAN-Build bleibt erhalten.
 
 Die nächste Entscheidung fällt am Gerät: **Lässt sich das Widget installieren,
 funktioniert die Fernbedienung und zeigt das lokale Video Bild plus Ton?** Erst

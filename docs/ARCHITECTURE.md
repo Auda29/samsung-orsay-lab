@@ -11,16 +11,26 @@ widget/player.js           SAMSUNG-INFOLINK-PLAYER, benannte globale Callbacks
 Gerät: $MANAGER_WIDGET      Samsung-Bibliotheken bleiben auf dem Fernseher
 
 tools/build.py             Offline-ZIP + widgetlist.xml + Browser-Vorschau
-tools/serve.py             lokaler HTTP-/Range-Server, kein Medienserver
+tools/serve.py             lokaler HTTP-/Range-Server und POST /log
 tools/make_sample.py       einmalig eigenes H.264/AAC-Testmaterial erzeugen
 ```
 
 Keine Tizen- oder webOS-Funktionen im Orsay-Adapter. Kein automatischer App-Scan
 und kein erfundener erfolgreicher App-Start im Browser. Fehler, fehlende APIs
-und Anfragen zum Verlassen sind sichtbar. Der Log ist auf sechs Einträge
-begrenzt, Tastencodes auf zwölf. Keine dauerhafte Speicherung oder Telemetrie.
+und Anfragen zum Verlassen sind sichtbar. Auf dem Bildschirm ist der Log auf sechs
+Einträge begrenzt, die Tastencodeanzeige auf zwölf. Zusätzlich schreibt der
+Installationsserver bereinigte Ereignisse nach `artifacts/tv-log.jsonl`.
+`LabLog` puffert auch Fehler vor der Konfiguration und sendet sie anschließend
+asynchron an die beim Build gesetzte Logadresse. Es gibt nur einen Versandpfad,
+auch für `window.onerror`. Transportfehler erzeugen keine weiteren Logereignisse.
 Konfiguration wird nur beim Build eingelesen; der Fernseher braucht noch keine
 Bildschirmtastatur. Daher sind keine Credentials oder Tokens implementiert.
+
+Die zusätzliche SEF-/Legacy-AVPlay-Diagnose prüft vorhandene Methoden, ohne einen
+zweiten Player zu öffnen oder Ressourcen anzufordern. Der vorhandene
+INFOLINK-Wiedergabepfad bleibt der Gerätetest. Der fokussierte Anchor verarbeitet
+Tasten direkt und stoppt deren Weiterleitung an den Document-Handler; dieser
+bleibt als Fallback für andere Eventziele erhalten.
 
 Native Player-Callbacks werden als globale Namen registriert, wie im
 Legacy-Referenzclient [S9]. Jeder Start erhält eigene Namen nach dem Muster

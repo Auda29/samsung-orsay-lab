@@ -12,8 +12,7 @@ import zipfile
 import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0"
-ZIP_NAME = "OrsayLab_0.1.0_Europe_20261022.zip"
+DEFAULT_PORT = 8080
 DEFAULTS = {"mediaUrl": "", "plexBaseUrl": "", "probeUrl": "", "playerWidth": 960, "playerHeight": 540}
 
 
@@ -52,7 +51,7 @@ def icon(width, height):
             + chunk(b"IDAT", zlib.compress(pixels, 9)) + chunk(b"IEND", b""))
 
 
-def build(host="127.0.0.1", port=80, config_path=None, output=None):
+def build(host="127.0.0.1", port=DEFAULT_PORT, config_path=None, output=None, build_number=None):
     address = ipaddress.IPv4Address(host)
     if address.is_unspecified or address.is_multicast:
         raise ValueError("host must be the installation server's reachable IPv4 address")
@@ -64,14 +63,30 @@ def build(host="127.0.0.1", port=80, config_path=None, output=None):
     output.mkdir(parents=True, exist_ok=True)
     files = {p.relative_to(ROOT / "widget").as_posix(): p.read_bytes()
              for p in sorted((ROOT / "widget").rglob("*")) if p.is_file()}
-    ET.fromstring(files["config.xml"])
+    manifest = ET.fromstring(files["config.xml"])
+    version_node = manifest.find("{http://www.samsung.com/}ver")
+    version = version_node.text if version_node is not None else ""
+    parts = (version or "").split(".")
+    if len(parts) != 3 or not all(part.isascii() and part.isdigit() for part in parts):
+        raise ValueError("config.xml ver must contain three numeric components")
+    if build_number is not None:
+        if type(build_number) is not int or not 0 <= build_number <= 65535:
+            raise ValueError("build-number must be an integer in 0..65535")
+        parts[2] = str(build_number)
+    version = ".".join(parts)
+    version_node.text = version
+    ET.register_namespace("", "http://www.samsung.com/")
+    files["config.xml"] = ET.tostring(manifest, encoding="utf-8", xml_declaration=True)
+    config.update(buildVersion=version, logUrl="http://" + host +
+                  (":" + str(port) if port != 80 else "") + "/log")
     files["config.js"] = ("var LAB_CONFIG = " + json.dumps(config, sort_keys=True, ensure_ascii=True) + ";\n").encode()
     for name, size in {"small": (106, 87), "big": (115, 95), "list": (85, 70), "biglist": (95, 78)}.items():
         files["icons/" + name + ".png"] = icon(*size)
     files["licenses/free-my-tv-MIT.txt"] = (ROOT / "licenses/free-my-tv-MIT.txt").read_bytes()
     files["LICENSE"] = (ROOT / "LICENSE").read_bytes()
     files["THIRD_PARTY_NOTICES.md"] = (ROOT / "THIRD_PARTY_NOTICES.md").read_bytes()
-    zip_path = output / ZIP_NAME
+    zip_name = "OrsayLab_" + version + "_Europe.zip"
+    zip_path = output / zip_name
     # Stored entries plus fixed timestamps/permissions give byte-identical packages.
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_STORED) as archive:
         for name, data in sorted(files.items()):
@@ -84,7 +99,7 @@ def build(host="127.0.0.1", port=80, config_path=None, output=None):
     ET.SubElement(widget, "title").text = "Orsay Lab"
     ET.SubElement(widget, "compression", size=str(zip_path.stat().st_size), type="zip")
     ET.SubElement(widget, "description").text = "Remote and player diagnostic for Samsung Orsay"
-    ET.SubElement(widget, "download").text = "http://" + host + (":" + str(port) if port != 80 else "") + "/" + ZIP_NAME
+    ET.SubElement(widget, "download").text = "http://" + host + (":" + str(port) if port != 80 else "") + "/" + zip_name
     ET.indent(rsp)
     (output / "widgetlist.xml").write_bytes(ET.tostring(rsp, encoding="utf-8", xml_declaration=True))
     preview = output / "preview"
@@ -95,18 +110,19 @@ def build(host="127.0.0.1", port=80, config_path=None, output=None):
             data = b"\n".join(line for line in data.split(b"\n") if b"$MANAGER_WIDGET" not in line)
         target.write_bytes(data)
     digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
-    (output / "SHA256SUMS").write_text(digest + "  " + ZIP_NAME + "\n", encoding="ascii")
+    (output / "SHA256SUMS").write_text(digest + "  " + zip_name + "\n", encoding="ascii")
     return zip_path, digest
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1", help="LAN IPv4 of the server, NOT the TV")
-    parser.add_argument("--port", type=int, default=80)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--build-number", type=int, help="Explicit final component of config.xml version (0..65535)")
     parser.add_argument("--config", type=Path)
     args = parser.parse_args()
     try:
-        path, digest = build(args.host, args.port, args.config)
+        path, digest = build(args.host, args.port, args.config, build_number=args.build_number)
     except (ValueError, OSError) as error:
         parser.error(str(error))
     print(str(path) + "\nSHA256 " + digest)

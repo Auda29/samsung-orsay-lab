@@ -2,6 +2,7 @@
 var OrsayTV = (function () {
   'use strict';
   var widget = null, keys = null, ready = false, seen = [], nativeMode = false;
+  var blockWarning = false;
   var fallback = {left: 4, right: 5, up: 29460, down: 29461, ok: 29443, back: 88, exit: 45, stop: 70};
   var names = {left: 'KEY_LEFT', right: 'KEY_RIGHT', up: 'KEY_UP', down: 'KEY_DOWN',
     ok: 'KEY_ENTER', back: 'KEY_RETURN', exit: 'KEY_EXIT', stop: 'KEY_STOP'};
@@ -30,6 +31,7 @@ var OrsayTV = (function () {
     var k;
     seen.push(code);
     if (seen.length > 12) seen.shift();
+    LabLog.record('key', code);
     for (k in fallback) {
       if (fallback.hasOwnProperty(k) && (code === fallback[k] || (keys && code === keys[names[k]]))) return k;
     }
@@ -38,7 +40,10 @@ var OrsayTV = (function () {
   function block(event) {
     if (event && event.preventDefault) event.preventDefault();
     if (widget && widget.blockNavigation) {
-      try { widget.blockNavigation(); } catch (e) { LabLog.add('blockNavigation FEHLER'); }
+      try { widget.blockNavigation(event); }
+      catch (e) {
+        if (!blockWarning) { blockWarning = true; LabLog.add('blockNavigation FEHLER: ' + e.message); }
+      }
     }
   }
   function leave(exit) {
@@ -50,19 +55,28 @@ var OrsayTV = (function () {
   }
   function diagnostics() {
     var player = document.getElementById('pluginPlayer');
+    var sef = document.getElementById('pluginSEF');
+    var avplay = null;
+    try { avplay = window.webapis && window.webapis.avplay; } catch (e) { /* Report unavailable below. */ }
     var navi = document.getElementById('pluginNNavi'), model = 'nicht ermittelt';
     try { if (navi && navi.GetModelCode) model = String(navi.GetModelCode()); }
     catch (e) { model = 'GetModelCode fehlgeschlagen'; }
     return [
-      'Modus: ' + (nativeMode ? 'Orsay Widget API erkannt (kein Funktionsnachweis)' : 'Browser / TV-API fehlt'),
-      'Widget API: ' + !!widget + ' | Ready gesendet: ' + ready + ' | TVKeyValue: ' + !!keys,
+      'Build: ' + LAB_CONFIG.buildVersion + ' | Modus: ' + (nativeMode ? 'Orsay' : 'Browser'),
+      'Widget: ' + !!widget + ' | Ready gesendet: ' + ready + ' | TVKeyValue: ' + !!keys,
       'Modell (NNavi, optional): ' + model,
-      'Player InitPlayer: ' + !!(player && player.InitPlayer) + ' | StartPlayback: ' + !!(player && player.StartPlayback),
+      'INFOLINK InitPlayer: ' + available(player, 'InitPlayer') + ' | StartPlayback: ' + available(player, 'StartPlayback'),
+      'SEF Open: ' + available(sef, 'Open') + ' | Execute: ' + available(sef, 'Execute'),
+      'Legacy AVPlay getAVPlay: ' + available(avplay, 'getAVPlay') + ' (nur Erkennung)',
+      'Log-Rückkanal: ' + LabLog.remoteStatus(),
       'Viewport: ' + window.innerWidth + ' x ' + window.innerHeight + ' | Screen: ' + screen.width + ' x ' + screen.height,
       'User-Agent: ' + navigator.userAgent,
       'Letzte rohe Tastencodes: ' + seen.join(', '),
-      'Firmware: manuell am TV ablesen. Keine Firmwareänderung nötig / vorgesehen.'
+      'API-Erkennung belegt keine Wiedergabe. Firmware am TV ablesen.'
     ].join('\n');
+  }
+  function available(object, name) {
+    try { return !!(object && object[name]); } catch (e) { return false; }
   }
   return {init: init, focus: focus, action: action, block: block, leave: leave,
     diagnostics: diagnostics, nativeMode: function () { return nativeMode; }};

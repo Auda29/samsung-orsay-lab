@@ -46,6 +46,7 @@ var Lab = (function () {
       show('YouTube · Gerätetest offen', 'YouTube zuerst direkt im Smart Hub öffnen und ein Video abspielen.\nAnmeldung und anonyme Wiedergabe getrennt testen.\n\nDieser Prototyp enthält keinen YouTube-Client.\nKeine erratene Tizen-App-ID, kein eingebetteter Web-Player.\nBei fehlender Dienstkompatibilität ist HDMI die Ausweichlösung.');
     } else if (selected === 2) {
       show('Gerätediagnose', OrsayTV.diagnostics());
+      LabLog.record('diagnostics', OrsayTV.diagnostics());
     } else if (selected === 3) {
       playing = true; $('home').style.display = 'none'; $('panel').style.display = 'none';
       $('playback').style.display = 'block'; document.body.className = 'playing';
@@ -101,9 +102,22 @@ var Lab = (function () {
     if (panel === 2) $('panel-text').textContent = OrsayTV.diagnostics();
   }
   function start() {
+    $('build-label').textContent = 'UE32J4570 · Build ' + LAB_CONFIG.buildVersion;
+    LabLog.add('Build ' + LAB_CONFIG.buildVersion);
     fit(); OrsayTV.init(); focus();
+    LabLog.observe(function () {
+      if (panel === 2) $('panel-text').textContent = OrsayTV.diagnostics();
+    });
+    LabLog.record('diagnostics', OrsayTV.diagnostics());
     $('mode').textContent = OrsayTV.nativeMode() ? 'Orsay API erkannt · Installation / Bild / Ton am Gerät bestätigen' : 'BROWSER-VORSCHAU · keine bestätigten TV-Funktionen';
     document.onkeydown = key;
+    $('key-anchor').onkeydown = function (event) {
+      event = event || window.event;
+      /* Anchor handling for legacy engines; prevent duplicate document handling. */
+      event.cancelBubble = true;
+      if (event.stopPropagation) event.stopPropagation();
+      key(event);
+    };
     window.onresize = fit;
     for (var i = 0; i < 6; i++) (function (index) {
       $('tile-' + index).onclick = function () { selected = index; focus(); activate(); };
