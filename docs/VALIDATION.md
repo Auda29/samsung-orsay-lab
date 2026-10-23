@@ -1,92 +1,91 @@
-# Lokaler Prüfbericht
+# Local validation report
 
-Stand: 2026-10-23. Keine Verbindung zu TV oder Heimnetz, kein echter Plex-Server
-abgerufen. Die Samsung-Modellzuordnung ist aus Dokumentation bestätigt; das ist
-kein Laufzeitnachweis auf dem Gerät.
+Status: 2026-10-23. No connection to the TV or its home network was made, and no
+real Plex server was queried. Documentation establishes the Samsung model-group
+mapping; it does not prove runtime behavior on the device.
 
-## Erste Prüfung am 2026-10-22
+## Initial checks on 2026-10-22
 
-Umgebung: Python 3.12.14, Playwright 1.62.0, Chromium 154.0.8037.57, FFmpeg.
-Eine `.venv` wurde mit Zugriff auf vorinstallierte Systempakete angelegt.
-Shell-Netzwerkzugriffe über den vorgegebenen Proxy waren nicht möglich; Quellen
-wurden über Firecrawl und den GitHub-Connector gelesen. Der Build selbst arbeitet
-offline. Lokale HTTP-/Browsertests liefen mit erlaubten Netzwerk-Sockets.
+Recorded environment: Python 3.12.14, Playwright 1.62.0, Chromium 154.0.8037.57 and
+FFmpeg. A virtual environment had access to preinstalled system packages.
+Shell network access through the supplied proxy was unavailable, so sources were
+read through Firecrawl and the GitHub connector. The build itself runs offline.
+Local HTTP/browser checks used permitted network sockets.
 
-| Prüfung | Ergebnis und Aussagegrenze |
+| Check | Result and limits |
 | --- | --- |
-| Python-Unittests: 4 | Bestanden: ZIP-Struktur, Lizenzdateien, XML, Größe, identische ZIP-Bytes bei identischen Eingaben; Konfigurationsschutz; HTTP Range/HEAD/416; CORS/Probe/404. Keine formale Samsung-SDK-Zertifizierung. |
-| Reales Chromium: gebaute Vorschau | Bestanden: Pfeile/Enter/Escape, Legacy-Codes, Fokus, Diagnose, Netzprobe HTTP 200 und Return/Exit-Anforderung im Browser. |
-| Viewports | 960×540, 1280×720, 1366×768: Bühne bleibt im sichtbaren Fenster. Screenshot bei 1366×768 visuell geprüft. Kein Overscan-Test am TV. |
-| Reale Browser-Medienwiedergabe | Erzeugtes MP4 über lokalen Range-Server geladen; HTML5 currentTime läuft vorwärts. Headless: kein manuell bestätigter Tonnachweis, kein Orsay-Decoder-Test. |
-| Simulierte Orsay-APIs | Bestanden: Ready, native InitPlayer → SetDisplayArea → StartPlayback, Callback, Stop, Return, Exit. Fehlende native API ergibt sichtbaren Fehler und keinen stillen HTML5-Fallback. Mocks sind keine Hardwareemulation. |
-| JS-Laufzeitfehler | Keine pageerror-Ereignisse in den erfolgreichen Browserprüfungen. |
-| Testdatei mit ffprobe | 30,000 s; H.264 Constrained Baseline L3.1, 1280×720, 25 fps, yuv420p; AAC-LC, 2 Kanäle; 7.266.045 Bytes beim hier erzeugten Exemplar. |
+| Four Python unit tests | Passed: ZIP structure, licenses, XML, size, identical ZIP bytes for identical inputs, configuration validation, HTTP Range/HEAD/416 and CORS/probe/404. This is not formal Samsung SDK certification. |
+| Actual Chromium, built preview | Passed: arrows/Enter/Escape, Legacy codes, focus, diagnostics, HTTP 200 probe and browser Return/Exit requests. |
+| Viewports | At 960×540, 1280×720 and 1366×768 the stage stayed within the window. The 1366×768 screenshot was visually checked. TV overscan was not tested. |
+| Actual browser media playback | The generated MP4 loaded through the local range server and HTML5 currentTime advanced. Headless playback does not establish audible sound or Orsay decoder behavior. |
+| Mocked Orsay APIs | Passed: Ready, native InitPlayer > SetDisplayArea > StartPlayback, callback, Stop, Return and Exit. Missing native APIs produced a visible error without a silent HTML5 fallback. Mocks do not emulate the hardware. |
+| JS runtime errors | No pageerror events in the successful browser checks. |
+| Test file checked with ffprobe | 30.000 seconds; H.264 Constrained Baseline L3.1, 1280×720, 25 fps, yuv420p; AAC-LC, two channels; 7,266,045 bytes for that generated file. |
 
-Quellcode ist im ES5-Stil gehalten (var, Funktionen, keine Module, Klassen,
-async/await oder Promise-Erzeugung), ohne Frameworks und externe Assets.
-Es wurde kein formaler ES5-Parser und kein Legacy-WebKit ausgeführt. Chromium
-akzeptiert auch moderne Sprachfeatures; diese Prüfung ersetzt daher keine
-Kompatibilitätsprüfung auf Orsay.
+The code uses ES5-style var declarations and functions, without modules, classes,
+async/await or Promise construction. No framework or external asset is required.
+Neither a formal ES5 parser nor Legacy WebKit was run. Chromium also accepts
+modern syntax, so these checks do not replace an Orsay compatibility test.
 
-Die Browservorschau entfernt nur die geräteeigenen `$MANAGER_WIDGET`-Script-Tags;
-die eigentliche Widget-ZIP behält sie. Die native Integrationsprüfung setzt
-explizite Mock-Objekte vor dem Laden der App.
+The browser preview removes only the on-device `$MANAGER_WIDGET` script tags.
+The actual widget ZIP retains them. Native integration checks install explicit
+mock objects before the app loads.
 
-## Nachprüfung der Playerkorrekturen unter Windows
+## Player-fix checks on Windows
 
-Am 2026-10-22 mit Python 3.11.9 und Node.js 22.15.0 erneut geprüft:
+Rechecked on 2026-10-22 with Python 3.11.9 and Node.js 22.15.0:
 
-- Alle vier Python-Unittests bestehen.
-- 13 Player-Regressionstests mit virtueller Uhr und expliziten Native-/HTML5-Mocks
-  bestehen. Abgedeckt sind Stillstand trotz wiederholter Zeit-Callbacks,
-  ungültige/rückläufige Werte, echter Fortschritt unterhalb einer Sekunde,
-  verspätete Ereignisse nach Stop/Neustart, rekursive Stop-Ereignisse,
-  synchrone Startfehler, fehlende APIs, Start-Ablehnungen und Wiedergabeende.
-- Die Mocktests sind ohne Browser und ohne Zusatzpakete über
-  `node --test tests/player.test.cjs` ausführbar. Node.js ist nur eine
-  Entwicklungsabhängigkeit; Build und Installationsserver bleiben bei Python.
-- Der Browsertest besteht mit Playwright 1.62.0 und Chromium 151.0.7922.34
-  in einer lokalen `.venv`. Das neu erzeugte Testvideo wird tatsächlich über
-  HTML5 abgespielt. Navigation, Netzprobe, Viewports und der simulierte
-  Orsay-Lifecycle bestehen ebenfalls, einschließlich Neustart mit einem
-  verspäteten Ende-Callback der vorherigen Sitzung. Kein TV-/Tonnachweis.
+- All four Python unit tests passed.
+- Thirteen player regression tests passed with a virtual clock and explicit
+  native/HTML5 mocks. They cover stalls despite repeated time callbacks,
+  invalid/decreasing values, genuine subsecond progress, delayed events after
+  stop/restart, recursive Stop events, synchronous startup errors, missing APIs,
+  rejected starts and natural completion.
+- The mocks run without a browser or extra packages using
+  `node --test tests/player.test.cjs`. Node.js is a development dependency only;
+  packaging and the installation server use Python.
+- The browser test passed with Playwright 1.62.0 and Chromium 151.0.7922.34 in a
+  local virtual environment. The newly generated video played through HTML5.
+  Navigation, network probe, viewports and the mocked Orsay lifecycle also
+  passed, including a restart with a delayed end callback from the previous
+  session. This did not establish TV behavior or audible sound.
 
-## Nachprüfung der Diagnoseänderungen am 2026-10-23
+## Diagnostic-change checks on 2026-10-23
 
-Unter Windows mit Python 3.13.2, Node.js 24.16.0, Playwright 1.62.0 und
-Chromium 151.0.7922.34 geprüft. Playwright liegt in einer lokalen `.venv`;
-das Testvideo wurde mit dem vorhandenen FFmpeg neu erzeugt.
+Checked on Windows with Python 3.13.2, Node.js 24.16.0, Playwright 1.62.0 and
+Chromium 151.0.7922.34. Playwright was installed in a local virtual environment.
+The existing FFmpeg installation generated a new test video.
 
-- Sechs Python-Tests bestehen, einschließlich expliziter Paketversion,
-  reproduzierbarer ZIPs, Port-/Bind-Prüfung, Logempfang, Datenbereinigung und
-  Ablehnung ungültiger oder zu großer Loganfragen.
-- Alle 13 bisherigen Player-Tests und drei neue Logtransport-Tests bestehen.
-  Letztere prüfen gepufferte Startfehler, Zeitüberschreitungen ohne rekursive
-  Fehlermeldungen, begrenzten Puffer und jeweils nur eine laufende Anfrage.
-- Der Browsertest besteht mit tatsächlichem Fortschritt des HTML5-Testvideos,
-  bestehender Navigation und simuliertem Orsay-Lifecycle. Neue Prüfungen decken
-  Buildanzeige, passive SEF-/AVPlay-Erkennung, einmalige Tastenverarbeitung und
-  den Log-Rückkanal einschließlich eines Fehlers vor dem UI-Start ab.
-- Ein zuvor erzeugter Build in `dist/` blieb nach dem Browsertest bytegleich.
-  Der Vergleich erfasste alle Dateien anhand ihrer SHA256-Prüfsummen.
-- Die Diagnoseseite passt ohne abgeschnittenen Text in das geprüfte Layout.
-  Kopfzeile und Diagnose bei 1366×768 wurden anhand der Screenshots geprüft.
-  Der Übertragungsstatus aktualisiert sich nach HTTP 204 ohne weiteren Tastendruck.
+- Six Python tests passed, including explicit package versioning, reproducible
+  ZIPs, port/bind checks, log receipt, sanitization and rejection of invalid or
+  oversized log requests.
+- All thirteen existing player tests and three new log transport tests passed.
+  The latter cover queued startup errors, timeouts without recursive error
+  reporting, a bounded queue and only one request in flight.
+- The browser test passed with actual HTML5 video progress, existing navigation
+  and the mocked Orsay lifecycle. New checks cover the build label, passive
+  SEF/AVPlay detection, one-time key processing and remote logging, including
+  an error before UI startup.
+- An existing build in `dist/` remained byte-identical after the browser test.
+  Every file was compared using its SHA256 hash.
+- The diagnostics page fit within the checked layout without clipped text.
+  The heading and diagnostics at 1366×768 were checked in screenshots.
+  Transfer status updated to HTTP 204 without another key press.
 
-Das sind lokale Browser- und Mockprüfungen. Die neue Bibliothekseinbindung,
-Plugin-Erkennung, XHR-Übertragung und Fernbedienung auf Orsay bleiben am TV
-zu bestätigen. SEF und AVPlay wurden nicht für Wiedergabe implementiert.
+These are local browser and mock checks. Library loading, plugin detection,
+XHR transmission and remote input still need confirmation on Orsay.
+Playback through SEF and AVPlay was not implemented.
 
-## Noch nicht ausgeführt
+## Not yet tested
 
-- Installation, Menüs, Firmwareverträglichkeit und SDK-5.1-Laufzeit auf UE32J4570.
-- Echte Fernbedienung, Defaultnavigation, App-Verlassen und Fokus nach Rückkehr.
-- Legacy-Plugin-Callbacks, Videoebene, hörbarer Ton, Wiederholungsstarts und Langlauf.
-- PMS-Authentifizierung, Direct Play realer Bibliotheksmedien und Pi-Last.
-- Start / Funktion / Anmeldung der vorhandenen Plex- und YouTube-Apps.
-- TLS-Versionen, Zertifikatsspeicher, Codecgrenzen und Dienstkompatibilität des TV.
+- Installation, menus, firmware compatibility and SDK 5.1 runtime on UE32J4570.
+- Physical remote, default navigation, leaving the app and focus after returning.
+- Native plugin callbacks, video plane, audible sound, repeated starts and long runs.
+- PMS authentication, Direct Play of real library files and Pi load.
+- Launch, playback and login in the installed Plex and YouTube apps.
+- TV TLS versions, certificate store, codec limits and service compatibility.
 
-## Wiederholen
+## Repeat the checks
 
 ```bash
 python3 tools/make_sample.py
@@ -95,8 +94,11 @@ node --test tests/player.test.cjs tests/logging.test.cjs
 python3 tests/browser.py
 ```
 
-Das Video ist Voraussetzung für den Wiedergabeteil; ohne Datei meldet der
-Browsertest diesen Abschnitt als übersprungen. Erzeugte Screenshots liegen unter
-`artifacts/`. Der Browsertest baut und serviert in einem temporären Verzeichnis
-auf einem temporären Port. Ein vorhandenes `dist/` wird dabei nicht verändert.
-Für die Heimnetzinstallation mit tatsächlicher Server-IP und Port 80 bauen.
+Use `python` instead of `python3` on Windows if needed. Install the browser test
+dependencies using the [README instructions](../README.md) first.
+
+The video is required for the playback check; without it, the browser test marks
+that section as skipped. Screenshots are saved under `artifacts/`. The browser
+test builds and serves from a temporary directory on a temporary port, leaving
+an existing `dist/` intact. For home-network installation, build with the actual
+server IP and port 80.

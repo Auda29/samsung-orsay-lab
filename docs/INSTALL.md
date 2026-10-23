@@ -1,36 +1,41 @@
-# Build und Installation
+# Build and installation
 
-## 1. Vorbereitung am Fernseher
+For the shortest path, use the [TV test guide](TV_TEST.md). This document covers
+build options, installation details and troubleshooting. Source IDs refer
+to [SOURCES.md](SOURCES.md).
 
-Noch nichts zurücksetzen. Im normalen Menü unter Unterstützung / Samsung
-kontaktieren / Softwareinformationen Modell und Firmware notieren; unter
-Netzwerk die TV-IP ermitteln. Menünamen hängen vom Firmwarestand ab.
-Vorhandene Plex-/YouTube-App-Version und deren heutige Funktion erfassen.
-Vor einem Sync vorhandene Community-Widgets notieren: bei manchen alten
-Smart-Hub-Versionen kann eine Synchronisierung vorherige Benutzer-Apps ersetzen.
+## 1. Prepare the TV and network
 
-PC oder vorhandener Pi und TV müssen im selben erreichbaren Heimnetz sein.
-Gastnetz-/Client-Isolation darf die Verbindung nicht blockieren. Verwende die
-IPv4 des **Installationsservers**, nicht die des Fernsehers. Für die Beispiele
-ist dies `192.168.1.20`; überall durch die tatsächliche Adresse ersetzen.
+Record the model and firmware from the normal Support / Contact Samsung /
+Software Information menus. Find the TV's IP address under Network. Menu names
+depend on the firmware. Record the versions and current behavior of any installed
+Plex and YouTube apps before syncing.
 
-Für die Installation das Projekt auf einem Rechner im Heimnetz ausführen.
-Weder Tizen Studio noch ein alter SDK-Download ist nötig.
+Note existing community widgets. On some older Smart Hub versions, syncing can
+replace previously installed user apps.
 
-## 2. Reproduzierbarer Build
+The PC or existing Pi and the TV must be on the same reachable home network.
+Guest networks and client isolation can block access. Use the IPv4 address of
+the installation server, not the TV. The examples use `192.168.1.20`; replace it
+with the server's actual address throughout.
 
-Python 3.10+ genügt. Zuerst im Projektordner:
+Run the project on a computer in that network. Tizen Studio and an old Samsung
+SDK download are not required.
+
+## 2. Build a reproducible package
+
+Python 3.10+ is sufficient for the build. From the project folder:
 
 ```bash
 python3 tools/build.py --host 192.168.1.20 --port 80 --build-number 1
 python3 tools/make_sample.py
 ```
 
-FFmpeg mit libx264 wird nur für den zweiten Befehl gebraucht. Die Generierung
-ist eine einmalige Offline-Konvertierung, keine Lastannahme für den Plex-Pi.
-Das Testvideo besteht aus eigenem bewegtem Testmuster und 440-Hz-Ton.
+On Windows, use `python` instead of `python3` if needed. Only the second command
+requires FFmpeg with libx264. It creates a moving test pattern with a 440 Hz tone
+as a one-time offline conversion.
 
-Ergebnis:
+Output:
 
 ```text
 dist/widgetlist.xml
@@ -40,70 +45,78 @@ dist/preview/index.html
 media/test.mp4
 ```
 
-Die ZIP enthält config.xml, widget.info und index.html direkt im Root, keine
-zusätzliche Verzeichnisebene. Der Build verwendet eine feste Widget-ID
-`OrsayLab`, feste Dateizeiten und sortierte ZIP-Einträge. Gleiche Eingaben bei
-gleicher Python-/zlib-Version ergeben identische ZIP-Bytes. Eine andere Server-IP
-oder lokale Konfiguration ändert die Prüfsumme erwartungsgemäß.
-Das erzeugte Testvideo ist kein Bestandteil der ZIP und muss erreichbar bleiben.
+The ZIP contains `config.xml`, `widget.info` and `index.html` directly at its root.
+The builder uses a stable widget ID, `OrsayLab`, fixed file timestamps and sorted
+ZIP entries. Identical inputs with the same Python/zlib versions produce identical
+ZIP bytes. Changing the server IP or local configuration changes the checksum.
+The test video is outside the ZIP and must remain available on the server.
 
-Die Versionsquelle ist `<ver>` in `widget/config.xml`. `--build-number N` ersetzt
-ausdrücklich die letzte der drei Versionskomponenten, hier `0.1.1`. Für den nächsten
-TV-Stand beispielsweise `--build-number 2` verwenden. Ohne diese Option bleibt
-die Quellversion erhalten. Es gibt keinen automatischen Zähler und kein aktuelles
-Datum im ZIP-Namen. ZIP, Paketmanifest, TV-Kopfzeile, Diagnose und Log verwenden
-dieselbe Version. Nach dem Sync diese Kennung am TV kontrollieren.
+### Build version
 
-Optional für den Netztest zum bestehenden Plex-Server eine ignorierte Datei
-`local.json` anlegen, beispielsweise nur:
+The version source is `<ver>` in `widget/config.xml`. `--build-number N` replaces
+the last of its three numeric components, producing `0.1.1` in this example.
+Use `--build-number 2` for the next TV build. Without that option, the source
+version is used unchanged.
+
+There is no automatic counter or current date in the ZIP name. The ZIP name,
+package manifest, TV heading, diagnostics and logs share the same version.
+Check the displayed version after syncing.
+
+### Optional Plex network probe
+
+Create an ignored `local.json` file to probe an existing Plex server:
 
 ```json
 {"plexBaseUrl": "http://192.168.1.30:32400"}
 ```
 
-Dann `python3 tools/build.py --host 192.168.1.20 --port 80 --build-number 1 --config local.json`.
-Nicht gesetzte Felder behalten die automatisch erzeugten Test-/Probe-URLs.
-`local.example.json` zeigt alle unterstützten Schlüssel. Leere Felder
-überschreiben Defaults ausdrücklich. Medien-/Probe-URLs und Player-Koordinaten
-können so geändert werden; danach neu bauen und synchronisieren.
-Keine Tokens, Passwörter oder Plex-Login-Daten eintragen. Der Builder lehnt
-unbekannte Schlüssel, URL-Benutzerdaten, Query und Fragment ab.
-HTTP zum PMS ist eine optionale LAN-Diagnose; keine globale Lockerung der
-Plex-Serveranmeldung oder TLS-Einstellungen ist erforderlich.
+Build with:
 
-## 3. Lokalen HTTP-Server starten
+```bash
+python3 tools/build.py --host 192.168.1.20 --port 80 --build-number 1 --config local.json
+```
 
-Das alte TV-IP-Menü akzeptiert üblicherweise nur eine IP, deshalb muss
-`/widgetlist.xml` über **Port 80** erreichbar sein [S5,S11]. Ein anderer Port ist
-für die Browservorschau möglich, aber nicht als Installationsweg zugesichert.
+Omitted fields retain the generated defaults. `local.example.json` lists all
+supported keys; empty values explicitly override defaults. Media/probe URLs and
+player coordinates can be changed this way, followed by rebuilding and syncing.
+
+Do not add tokens, passwords or Plex login details. The builder rejects unknown
+keys, URL credentials, query strings and fragments. The optional HTTP probe does
+not require changing Plex authentication or TLS settings.
+
+## 3. Start the local HTTP server
+
+The old TV installation menu usually accepts only an IP address, so
+`/widgetlist.xml` must be reachable on port 80 [S5,S11]. Other ports work for
+the browser preview but are not a confirmed TV installation method.
 
 ```bash
 python3 tools/serve.py --bind 192.168.1.20 --port 80
 ```
 
-Build und Server verwenden ohne `--port` beide 8080 für die Vorschau. Der Server
-prüft die Downloadadresse aus `dist/widgetlist.xml` und warnt bei abweichendem
-Port oder Bind-Host. `--bind 0.0.0.0` ist eine gültige Bindung für alle IPv4-Adressen
-und erzeugt keine Hostwarnung. Die im Build angegebene LAN-IP muss trotzdem stimmen.
+Without `--port`, both tools use 8080. The server checks the download address
+in `dist/widgetlist.xml` and warns if its port or bind address differs.
+`--bind 0.0.0.0` listens on all IPv4 interfaces and does not cause a host warning.
+The LAN IP embedded in the build must still be correct.
 
-Falls das Betriebssystem Port 80 nur mit erhöhten Rechten erlaubt, kann unter
-Linux/macOS ausschließlich dieser Standardbibliothek-Server so gestartet werden:
+If Linux/macOS requires elevated privileges for port 80, the standard-library
+server can be started with:
 
 ```bash
 sudo python3 tools/serve.py --bind 192.168.1.20 --port 80
 ```
 
-Wenn Port 80 belegt ist, einen anderen Installationsrechner oder den vorhandenen
-lokalen Webserver mit passender Auslieferung verwenden. Bestehende Dienste nicht
-ungeprüft stoppen. Bei einem anderen Webserver müssen `/widgetlist.xml`, die ZIP,
-`/health.txt` und das Video unter den generierten URLs erreichbar sein; für Video
-Content-Length, video/mp4 und Byte-Range/206 unterstützen.
-Für den Log-Rückkanal zusätzlich `POST /log` an den Python-Server weiterleiten
-oder denselben Empfangsvertrag implementieren.
-Unter Windows den Server ggf. durch die lokale Firewall im privaten Netz zulassen.
-Es ist keine Router-Portfreigabe nötig.
+If port 80 is occupied, use another installation computer or configure an existing
+local web server. Do not stop existing services without checking their purpose.
+An alternative server must serve `/widgetlist.xml`, the ZIP, `/health.txt` and the
+video at the generated URLs. Video delivery needs Content-Length, `video/mp4`
+and byte-range/206 support. For remote logs, forward `POST /log` to the Python
+server or implement the same receiver contract.
 
-Von einem **zweiten Gerät im selben Heimnetz** prüfen:
+On Windows, allow the server through the firewall for the private network if
+prompted. Router port forwarding is not required.
+
+Check these URLs from a second device on the same home network:
 
 ```text
 http://192.168.1.20/widgetlist.xml
@@ -112,75 +125,72 @@ http://192.168.1.20/media/test.mp4
 http://192.168.1.20/preview/index.html
 ```
 
-widgetlist.xml muss die aktuelle ZIP-Adresse und tatsächliche ZIP-Größe zeigen.
-Ein reiner PC-Selbsttest beweist die Erreichbarkeit vom TV nicht.
+`widgetlist.xml` must contain the current ZIP address and actual ZIP size.
+A check from the server itself does not prove the TV can reach it.
 
-### Diagnose vom TV empfangen
+### Receive diagnostics from the TV
 
-Der Builder setzt die Logadresse unabhängig von einer angepassten Probe-URL
-auf `http://<Build-Host>:<Build-Port>/log`. Der laufende Server schreibt jede
-empfangene Ereignisgruppe als JSON-Zeile nach `artifacts/tv-log.jsonl`, mit
-Empfangszeit, Client-IP und Buildversion. Die Datei liegt außerhalb von `dist`.
-Unter PowerShell lässt sie sich live lesen:
+The builder sets the log URL to `http://<build-host>:<build-port>/log`, independently
+of any custom probe URL. The server appends each event batch as a JSON line to
+`artifacts/tv-log.jsonl`, with receipt time, client IP and build version. This file
+is outside `dist/`.
+
+After the first events arrive, watch the file in a second PowerShell window:
 
 ```powershell
 Get-Content artifacts/tv-log.jsonl -Wait
 ```
 
-Erfasst werden Startdiagnose, Diagnoseaufrufe, rohe Tastencodes, Player-Startwerte
-und die Einträge des sichtbaren Logs einschließlich `window.onerror`. URLs und
-bekannte Zugangsdatenmuster werden vor dem Versand und beim Empfang bereinigt.
-API-Prüfungen zeigen nur vorhandene Schnittstellen; SEF und AVPlay werden weder
-geöffnet noch zur Wiedergabe verwendet.
+Events include startup diagnostics, diagnostic screen visits, raw key codes,
+player startup return values and visible log entries, including `window.onerror`.
+URLs and known credential patterns are sanitized before sending and on receipt.
+API checks detect interfaces only; they do not open SEF or AVPlay players.
 
-Der Versand erfolgt asynchron in kleinen Gruppen mit maximal 64 gepufferten
-Ereignissen. Fehlgeschlagene Gruppen werden verworfen, ohne rekursive Fehlerlogs
-oder automatische Wiederholung. Bei vielen Ereignissen werden die ältesten
-gepufferten Einträge verdrängt; beim Schließen können noch ausstehende Einträge
-verloren gehen. Der Bildschirm-Log bleibt verfügbar. Der Server begrenzt POSTs auf
-32 KiB. Für den Gerätetest weiterhin Bild und Ton direkt beurteilen.
+Sending is asynchronous, in small batches, with at most 64 queued events.
+Failed batches are dropped without recursive error logs or automatic retries.
+If the queue fills, older events are discarded; closing the widget can also
+lose pending events. The on-screen log remains available. The receiver limits
+each POST to 32 KiB. Image and sound must still be checked directly on the TV.
 
-## 4. Auf dem TV synchronisieren — Gerätetest, noch nicht bestätigt
+## 4. Sync on the TV
 
-Quellengrundlage: Community-Anleitung für H und ausgewählte J/K [S5] sowie der
-archivierte Installer [S3]. J4570 ist in diesen Installationsberichten nicht
-explizit verifiziert. Zuerst den H/J-Menüweg versuchen:
+This procedure comes from community instructions for H and selected J/K models
+[S5] and the archived installer [S3]. Installation on J4570 is still unconfirmed.
+Try the H/J menu path first:
 
-1. Menü → Smart Hub → Samsung-Konto → Anmelden. Das spezielle lokale
-   Entwicklerkonto heißt `develop`. Je nach Modell wird kein Passwort verlangt;
-   die Referenz nennt sonst `000000`. Das ist kein persönliches Samsung-Passwort.
-2. Smart Hub → Samsung Apps / Meine Apps vollständig öffnen.
-3. Eine installierte App markieren und OK/Enter einige Sekunden halten.
-4. Falls vorhanden: **IP Setting / Server-IP einstellen** wählen und die
-   Server-IP `192.168.1.20` eintragen.
-5. Erneut OK halten → **Start User App Sync / Benutzeranwendungen
-   synchronisieren**. Serverlog beobachten.
-6. „Orsay Lab“ in Meine Apps suchen und öffnen. Bei Bedarf Smart Hub verlassen
-   und erneut öffnen. Ergebnis und exakten Menüpfad protokollieren.
+1. Open Menu > Smart Hub > Samsung Account > Sign in. The local developer account
+   is `develop`. Some models require no password; the reference otherwise lists
+   `000000`. This is not a personal Samsung account password.
+2. Open Smart Hub > Samsung Apps / My Apps fully.
+3. Highlight an installed app and hold OK/Enter for a few seconds.
+4. If available, select **IP Setting** and enter the server IP, `192.168.1.20`.
+5. Hold OK again and choose **Start User App Sync**. Watch the server console.
+6. Find and open **Orsay Lab** in My Apps. If needed, close and reopen Smart Hub.
+   Record the result and the exact menu path.
 
-Andere Orsay-Oberflächen haben Tools → Einstellungen → Entwicklung → Server-IP
-und Benutzeranwendungen synchronisieren. Der RED/BLUE-Menüweg aus [S3] betrifft
-andere Orsay-Versionen und ist keine gesicherte J4570-Anleitung.
-Keine Tizen-„12345“-Anleitung auf Verdacht anwenden.
+Other Orsay interfaces use Tools > Settings > Development > Server IP and user
+app synchronization. The RED/BLUE menu path in [S3] applies to other Orsay
+versions and is not a verified J4570 procedure. Do not substitute the Tizen
+"Apps, 12345" instructions.
 
-Fehlen Konto, IP-Einstellung oder Sync: Firmware und sichtbare Menüs erfassen
-und dort stoppen. Kein Service-Menü, kein Werksreset und kein Firmware-Downgrade
-als Standardlösung. Es werden keine Änderungen am Firmwareimage benötigt.
+If the account, IP setting or sync option is missing, record the firmware and
+visible menus and stop there. A service menu, factory reset or firmware downgrade
+is not part of this procedure.
 
-## 5. Eingrenzen anhand des Serverlogs
+## 5. Troubleshoot using the logs
 
-| Beobachtung | Nächster Schritt |
+| Observation | Next check |
 | --- | --- |
-| Kein GET auf widgetlist.xml | LAN-IP, Port 80, Firewall, develop-Login und Sync-Menü prüfen |
-| XML geladen, ZIP nicht geladen | Downloadadresse, Port, Widgetliste und ZIP-Name prüfen |
-| ZIP geladen, App fehlt | TV-Fehlermeldung erfassen; Paket-/Firmwareverträglichkeit offen |
-| App startet und bleibt leer | Bildschirmfoto und API-/JS-Fehler erfassen; Legacy-WebKit nicht durch Chromium bewiesen |
-| Navigation fehlt | Diagnose-Tastencodes, Key-Anchor-Fokus und TVKeyValue prüfen |
-| Video schwarz | UI-Alpha/Videoebene, Pluginereignisse, Range-Requests und Codec getrennt prüfen |
-| Video ohne Ton | Lautstärke/Ausgang und AAC-Spur prüfen; Callback ist kein Tonnachweis |
-| XHR status 0 | CORS/TLS/Netzwerk nicht unterscheidbar; Serverlog und lokales HTTP vergleichen |
+| No GET for widgetlist.xml | LAN IP, port 80, firewall, develop login and sync menu |
+| XML fetched, ZIP not fetched | Download URL, port, widget list and ZIP name |
+| ZIP fetched, app missing | Record the TV error; package/firmware compatibility remains open |
+| App starts with a blank screen | Record the screen and API/JS errors; Chromium does not prove Legacy WebKit compatibility |
+| No navigation | Raw key codes, key-anchor focus and TVKeyValue |
+| Black video | Check UI transparency/video plane, plugin events, range requests and codec separately |
+| Video without sound | Volume/output and AAC track; a callback does not prove audible sound |
+| XHR status 0 | CORS, TLS and network failure are indistinguishable here; compare server logs and local HTTP |
 
-Nach Installation kann der Server beendet werden; die lokale Oberfläche liegt
-im Widget. Für den Testfilm und Netzproben muss er laufen. Zum Aktualisieren mit
-derselben ID neu bauen und erneut synchronisieren. Zum Entfernen Orsay Lab über
-die normale App-Verwaltung löschen und den Server mit Ctrl-C beenden.
+The installed UI works without the server. Keep the server running for video,
+network probes and remote logs. To update, rebuild with the same widget ID and
+sync again, then verify the displayed build version. To remove the widget, use
+the normal app manager and stop the server with Ctrl+C.

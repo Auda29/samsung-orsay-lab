@@ -1,87 +1,85 @@
 # Samsung UE32J4570 · Orsay Lab
 
-Eine isolierte Entwicklungsumgebung und ein erster Diagnose-Prototyp für den
-Samsung UE32J4570SSXZG. **Orsay / Samsung Legacy Platform, kein Tizen.**
+A small diagnostic widget and development environment for the Samsung
+UE32J4570SSXZG, using the Samsung Legacy Platform, also known as Orsay.
 
-Die Oberfläche ist lokal geprüft. Die ZIP-Paketierung folgt dem dokumentierten
-Orsay-Widgetformat; **die Installation auf diesem Fernseher ist noch nicht
-bestätigt**. Plex und YouTube sind Prüfpunkte, noch keine integrierten Clients.
+The interface has been tested locally. Installation on this TV is still
+unconfirmed. Plex and YouTube are compatibility checks, not integrated clients.
 
-## Einstieg
+**Start with the [short TV test guide](docs/TV_TEST.md)** to try installation,
+remote control input and the local test video. The widget currently uses German
+screen labels; the guide names the buttons exactly as they appear.
 
-Build und Installationsserver benötigen nur Python 3.10+ und dessen
-Standardbibliothek:
+## Browser preview
+
+Build and server require Python 3.10+ and its standard library. Run these commands
+from the project folder. On Windows, use `python` instead of `python3` if needed.
 
 ```bash
-cd samsung-orsay-lab
-python3 -m venv .venv
-# Linux/macOS; Windows: .venv\Scripts\activate
-. .venv/bin/activate
 python3 tools/build.py --host 127.0.0.1 --port 8080
 python3 tools/serve.py --bind 127.0.0.1 --port 8080
 ```
 
-Im Browser `http://127.0.0.1:8080/preview/index.html` öffnen. Pfeile, Enter,
-Escape/Backspace und F9 (= simulierter Exit) bedienen die Vorschau.
-Das Verzeichnis wird absichtlich nicht als Dateiliste angezeigt.
+Open `http://127.0.0.1:8080/preview/index.html`. Use the arrow keys, Enter,
+Escape/Backspace and F9 for a simulated Exit. Directory listings are disabled.
 
-Für das eigene 30-Sekunden-Testvideo einmal `python3 tools/make_sample.py`
-ausführen. Dafür wird FFmpeg mit libx264 benötigt; es wird nichts heruntergeladen.
-Das Video liegt außerhalb des Widgets unter `media/test.mp4` und wird separat
-vom Installationsserver ausgeliefert.
+To create the 30-second test video, run `python3 tools/make_sample.py` once.
+This requires FFmpeg with libx264 on PATH. The script generates the file locally;
+it does not download footage. The server serves `media/test.mp4` separately from
+the widget ZIP.
 
-**Vor einem TV-Test mit der LAN-IP des Installationsrechners neu bauen.** Die
-Vorschau verwendet Loopback für lokale Tests. Genaue Schritte, Port 80 und
-die unterschiedlichen Smart-Hub-Menüs stehen in [INSTALL.md](docs/INSTALL.md).
-Build und Server verwenden standardmäßig Port 8080. Für den TV-Sync beide
-ausdrücklich mit Port 80 starten.
+For a TV test, rebuild with the server's LAN IPv4 address and use port 80 for
+both build and server. Both tools default to port 8080 for the browser preview.
+See the [full installation guide](docs/INSTALL.md) for details.
 
-## Was enthalten ist
+## Included
 
-- Native Orsay-Anbindung für Ready, Tasten, Return und Exit in `widget/tv-orsay.js`.
-- Lokaler Player-Test über das Legacy-Player-Plugin; HTML5 nur in der Vorschau.
-- Diagnose für INFOLINK, SEF und Legacy-AVPlay; Wiedergabe über INFOLINK.
-- User-Agent, Viewport, Tastencodes und Fehlerlog mit Rückkanal zum LAN-Server.
-- Sichtbare Buildversion aus `config.xml`, optional mit expliziter Buildnummer.
-- Kleiner UI-Ausschnitt aus Free My TV mit vollständigem MIT-Hinweis.
-- Deterministischer Offline-Build, `widgetlist.xml`, ZIP und SHA256-Prüfsumme.
-- HTTP-Server mit CORS-Probe und Byte-Range-Unterstützung für das Testvideo.
+- Native Orsay Ready, key handling, Return and Exit in `widget/tv-orsay.js`.
+- Local playback through the INFOLINK player; HTML5 playback in the preview.
+- Passive detection of INFOLINK, SEF and Legacy AVPlay interfaces.
+- User agent, viewport, raw key codes and error logs sent to the LAN server.
+- A visible build version derived from `config.xml`, with an optional build number.
+- A small UI adaptation from Free My TV with the full MIT notice.
+- A deterministic offline build, `widgetlist.xml`, ZIP and SHA256 checksum.
+- An HTTP server with CORS support and byte ranges for the test video.
 
-`POST /log` schreibt bereinigte Ereignisse, Diagnose und Tastencodes nach
-`artifacts/tv-log.jsonl`. Ein nicht erreichbarer Logserver blockiert die Bedienung
-nicht. Die Diagnose zeigt den Übertragungsstatus. Details zu Buildnummer und
-Logauswertung stehen in [INSTALL.md](docs/INSTALL.md).
+`POST /log` writes sanitized events to `artifacts/tv-log.jsonl`. An unavailable
+log server does not block the UI. The diagnostics screen shows the transfer
+status. See [logging and build numbers](docs/INSTALL.md).
 
-Kein Root, kein Firmwarewechsel, kein neuer Medienserver, kein Autostart und
-kein Ersatz des Smart Hubs. Zugangsdaten werden weder benötigt noch mitgebaut.
-`local.json`, Medien, Buildausgaben und die virtuelle Umgebung sind ignoriert.
+The prototype does not require root, firmware changes or a new media server.
+It does not replace Smart Hub or provide autostart. Credentials are neither
+required nor packaged. Git ignores `local.json`, generated media, build output
+and the virtual environment.
 
-## Dokumentation und Tests
+## Documentation
 
-| Datei | Inhalt |
+| Document | Contents |
 | --- | --- |
-| [Machbarkeit](docs/FEASIBILITY.md) | Quellenbewertung, Plattform, Plex, YouTube und Grenzen |
-| [Installation](docs/INSTALL.md) | Reproduzierbarer Build und Installation im Heimnetz |
-| [Gerätetests](docs/DEVICE_TESTS.md) | Benötigte Angaben, kurze Testfolge und Protokoll |
-| [Prüfbericht](docs/VALIDATION.md) | Lokal geprüft / simuliert / auf dem TV offen |
-| [Quellen](docs/SOURCES.md) | Gelesene Quellen und relevante Fundstellen |
-| [Architektur](docs/ARCHITECTURE.md) | Portierungsgrenze und nächste Implementierungsschritte |
-| [Lizenzen](THIRD_PARTY_NOTICES.md) | Übernommene UI-Bestandteile und Referenzen |
+| [Short TV test](docs/TV_TEST.md) | Setup, installation and a quick pass/fail check |
+| [Installation](docs/INSTALL.md) | Build options, LAN setup, sync menus and troubleshooting |
+| [Device tests](docs/DEVICE_TESTS.md) | Detailed checks and a results template |
+| [Feasibility](docs/FEASIBILITY.md) | Platform, Plex, YouTube and unresolved limits |
+| [Validation](docs/VALIDATION.md) | Local tests, mocks and checks still pending on the TV |
+| [Sources](docs/SOURCES.md) | Reviewed sources and what they establish |
+| [Architecture](docs/ARCHITECTURE.md) | Runtime boundaries and possible next steps |
+| [Licenses](THIRD_PARTY_NOTICES.md) | Adapted UI code and third-party references |
+
+## Development tests
+
+Python and Node.js tests require no extra packages. The browser test uses
+Playwright and Chromium. An optional virtual environment keeps its dependencies
+separate from the system Python installation.
 
 ```bash
 python3 -m unittest discover -s tests -v
-# Player-Regressionstests mit Node.js 18+; keine npm-Pakete nötig
 node --test tests/player.test.cjs tests/logging.test.cjs
-# Optional: pip install -r requirements-dev.txt
-# Chromium installieren oder: python3 -m playwright install chromium
+# Optional browser checks:
+python3 -m pip install -r requirements-dev.txt
+python3 -m playwright install chromium
 python3 tests/browser.py
 ```
 
-Browserprüfungen verwenden vorhandenes Chromium, sonst Playwrights Chromium.
-Sie prüfen die gebaute Vorschau und simulieren Orsay-APIs in einem getrennten
-Browserkontext. Sie sind kein Orsay-Emulator. Der Browsertest verwendet ein
-temporäres Build- und Serververzeichnis; ein vorhandener LAN-Build bleibt erhalten.
-
-Die nächste Entscheidung fällt am Gerät: **Lässt sich das Widget installieren,
-funktioniert die Fernbedienung und zeigt das lokale Video Bild plus Ton?** Erst
-danach lohnt sich ein umfangreicherer Launcher oder Plex-Client.
+The browser test checks the built preview and mocked Orsay APIs. It uses a
+temporary build directory and leaves an existing LAN build in `dist/` intact.
+Chromium and mocks do not prove compatibility with the TV.

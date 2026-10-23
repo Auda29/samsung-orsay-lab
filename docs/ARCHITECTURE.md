@@ -1,85 +1,84 @@
-# Technischer Schnitt und Portierungsplan
+# Architecture and porting plan
 
-## Prototyp
+Source IDs refer to [SOURCES.md](SOURCES.md).
+
+## Prototype
 
 ```text
-widget/ui.js + ui.css      kleine Free-My-TV-Adaption, Fokus und Diagnose
-        │
-widget/tv-orsay.js         Common.API.Widget, TVKeyValue, Lifecycle
-widget/player.js           SAMSUNG-INFOLINK-PLAYER, benannte globale Callbacks
-        │
-Gerät: $MANAGER_WIDGET      Samsung-Bibliotheken bleiben auf dem Fernseher
+widget/ui.js + ui.css      small Free My TV adaptation, focus and diagnostics
+        |
+widget/tv-orsay.js         Common.API.Widget, TVKeyValue, lifecycle
+widget/player.js           SAMSUNG-INFOLINK-PLAYER, named global callbacks
+        |
+Device: $MANAGER_WIDGET    Samsung libraries remain on the TV
 
-tools/build.py             Offline-ZIP + widgetlist.xml + Browser-Vorschau
-tools/serve.py             lokaler HTTP-/Range-Server und POST /log
-tools/make_sample.py       einmalig eigenes H.264/AAC-Testmaterial erzeugen
+tools/build.py             offline ZIP, widgetlist.xml and browser preview
+tools/serve.py             local HTTP/range server and POST /log
+tools/make_sample.py       one-time generation of H.264/AAC test material
 ```
 
-Keine Tizen- oder webOS-Funktionen im Orsay-Adapter. Kein automatischer App-Scan
-und kein erfundener erfolgreicher App-Start im Browser. Fehler, fehlende APIs
-und Anfragen zum Verlassen sind sichtbar. Auf dem Bildschirm ist der Log auf sechs
-Einträge begrenzt, die Tastencodeanzeige auf zwölf. Zusätzlich schreibt der
-Installationsserver bereinigte Ereignisse nach `artifacts/tv-log.jsonl`.
-`LabLog` puffert auch Fehler vor der Konfiguration und sendet sie anschließend
-asynchron an die beim Build gesetzte Logadresse. Es gibt nur einen Versandpfad,
-auch für `window.onerror`. Transportfehler erzeugen keine weiteren Logereignisse.
-Konfiguration wird nur beim Build eingelesen; der Fernseher braucht noch keine
-Bildschirmtastatur. Daher sind keine Credentials oder Tokens implementiert.
+The Orsay adapter uses no Tizen or webOS APIs. It does not scan or launch installed
+apps. Errors, missing APIs and requests to leave the widget are shown explicitly.
 
-Die zusätzliche SEF-/Legacy-AVPlay-Diagnose prüft vorhandene Methoden, ohne einen
-zweiten Player zu öffnen oder Ressourcen anzufordern. Der vorhandene
-INFOLINK-Wiedergabepfad bleibt der Gerätetest. Der fokussierte Anchor verarbeitet
-Tasten direkt und stoppt deren Weiterleitung an den Document-Handler; dieser
-bleibt als Fallback für andere Eventziele erhalten.
+The screen retains six log entries and twelve key codes. The installation server
+also writes sanitized events to `artifacts/tv-log.jsonl`. `LabLog` queues errors
+that occur before configuration and sends them asynchronously to the build's log
+URL. There is one sending path, including for `window.onerror`. Transport failures
+do not generate further log events.
 
-Native Player-Callbacks werden als globale Namen registriert, wie im
-Legacy-Referenzclient [S9]. Jeder Start erhält eigene Namen nach dem Muster
-`LabPlayer.session<id>_<name>`. Stop deaktiviert die Sitzung vor dem nativen
-Stop-Aufruf. Alte Namen bleiben bis zum Schließen des Widgets als leere
-Funktionen erhalten, damit verzögerte Aufrufe weder die nächste Wiedergabe
-stoppen noch fehlende Funktionen aufrufen. Die alten Sitzungsobjekte werden
-dabei freigegeben. Auch HTML5-Ereignisse und Play-Ablehnungen sind an ihre
-Sitzung gebunden. Die Auflösung dieser Namen durch die TV-Firmware bleibt
-Teil des Gerätetests.
+Configuration is read at build time, so the TV does not need an on-screen
+keyboard. Credential and token handling are not implemented.
 
-Methodenaufrufe können fehlschlagen oder keine
-eindeutigen Rückgabewerte liefern; Erfolg wird erst durch die TV-Beobachtung
-festgestellt. Nach 20 s ohne steigende, endliche Wiedergabezeit gibt es einen
-Timeout. Gleiche, rückläufige oder ungültige Zeitwerte und reine Pufferereignisse
-verlängern die Frist nicht. Stop/Return,
-Unload und Pause räumen den gestarteten Player auf. Die UI und HTML-Hintergründe
-werden für die Videoebene transparent. Deren Koordinaten bleiben konfigurierbar.
+The SEF/Legacy AVPlay diagnostics inspect available methods without opening
+another player or requesting playback resources. Actual playback still uses
+INFOLINK. The focused anchor handles keys directly and stops propagation to the
+document handler, which remains a fallback for other event targets.
 
-## Tatsächlich übernommene Free-My-TV-UI
+Native player callbacks are registered as global names, following the Legacy
+reference client [S9]. Each start gets names of the form
+`LabPlayer.session<id>_<name>`. Stop deactivates the session before calling the
+native Stop method. Retired names remain callable as empty functions until the
+widget closes, so delayed native events cannot stop the next stream or call
+missing functions. Old session objects can be released. HTML5 events and play
+rejections are also bound to their sessions. The TV firmware's resolution of
+these callback names still needs a device test.
 
-`web/home.js`: fit-Skalierung und setClass-Helfer.
-`web/home.css`: verkleinerte .tile/.word/Fokus-Gestaltung.
-Quelle, Abrufdatum und SHA256 der gelesenen Originaldateien stehen unter
-`research/`, die MIT-Lizenz ist auch im installierbaren Widget enthalten.
+Method calls can fail or return ambiguous values. Startup return values are
+logged; image and sound must be confirmed on the TV. Playback times out after
+20 seconds without an increasing, finite play time. Repeated, decreasing or
+invalid time values and buffering events do not extend that deadline.
 
-Die komplette home.js verwendet zusätzlich Prefs, Data, I18N, Wetter, Bilder,
-mehrere Apps, Eingänge und Einstellungen. Ein pauschales Kopieren würde diese
-Abhängigkeiten samt nicht geprüftem Plattformverhalten übernehmen. Deshalb ist
-hier zunächst nur ein kleiner Teil portiert; es wird kein vollständiger
-Free-My-TV-Port behauptet. `web/tv.js` bleibt als untersuchte Quelle erhalten,
-wird jedoch nicht in das Orsay-Widget geladen.
+Stop, Return, unload and pause clean up the player. UI and HTML backgrounds
+become transparent for the video plane. Its coordinates remain configurable.
 
-## Nach erfolgreichem Gerätetest
+## Adapted Free My TV code
 
-1. Tatsächlichen Viewport, Keycodes und Player-Koordinaten im Adapter festhalten.
-   Erst bei Bedarf SDK-5.1-spezifische API-Alternativen ergänzen.
-2. Vorhandene Plex-/YouTube-Apps mit Versionen inventarisieren. Ein dokumentierter
-   Orsay-App-Aufruf ist ein eigenes Gerätetestziel. Tizen-IDs nicht übertragen.
-3. Wenn Plex-Altclient scheitert: minimale Bibliotheksliste für den bestehenden
-   PMS, Authentifizierung und Tokenverwaltung entwerfen; Secret-Handling erst
-   vor diesem Ausbau hinzufügen. Eine passende Datei direkt wiedergeben,
-   Fehler bei inkompatiblen Formaten sichtbar anzeigen; nicht automatisch
-   Video-Transcoding auf dem Pi erzwingen.
-4. Erst danach mehr von der Free-My-TV-Ablage und den Einstellungen portieren;
-   nur Plex und YouTube als Dienstziele. Keine Wetter-/TMDB-/Krypto-Abhängigkeiten.
-5. Autostart und Ersatz des Smart Hubs separat untersuchen, ohne sie für
-   Installation, Bedienung oder Wiedergabe vorauszusetzen.
+- `web/home.js`: fit scaling and the setClass helper.
+- `web/home.css`: a smaller adaptation of tile, word and focus styling.
 
-Die native Gesamtlösung bleibt von funktionierendem YouTube abhängig. Wenn der
-Dienst auf dem Gerät nicht mehr nutzbar ist, kann eine schönere Oberfläche diese
-Grenze nicht aufheben. HDMI bleibt die bereits vorgesehene Ausweichlösung.
+Source, retrieval date and SHA256 hashes are under `research/`. The widget ZIP
+includes the MIT license.
+
+The full upstream home.js also uses Prefs, Data, I18N, weather, images, multiple
+apps, inputs and settings. Copying it wholesale would introduce those dependencies
+and untested platform behavior. Only the small UI portion listed above is ported.
+The upstream `web/tv.js` is retained for research and is not loaded by the widget.
+
+## After a successful device test
+
+1. Record the actual viewport, key codes and player coordinates in the adapter.
+   Add SDK 5.1 API alternatives only where the results show a need.
+2. Inventory existing Plex/YouTube apps and versions. A documented Orsay app-launch
+   path is a separate device-test goal; do not transfer Tizen app IDs.
+3. If the old Plex client fails, design a minimal library view for the existing
+   PMS, authentication and token handling. Add secret handling before that
+   expansion. Directly play one suitable file, show incompatible-format errors
+   and do not automatically force video transcoding on the Pi.
+4. Then consider porting more of the Free My TV app list and settings. Plex and
+   YouTube remain the service targets; weather, TMDB and crypto are out of scope.
+5. Investigate autostart and Smart Hub replacement separately. Neither is a
+   prerequisite for installation, input handling or playback.
+
+The complete native solution still depends on usable YouTube playback.
+If the service no longer works on this device, a UI change cannot restore it.
+HDMI remains the planned fallback.
